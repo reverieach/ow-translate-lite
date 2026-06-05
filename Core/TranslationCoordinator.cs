@@ -27,7 +27,8 @@ public sealed class TranslationCoordinator
             return Array.Empty<TranslationRecord>();
         }
 
-        using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(_settings.CaptureRegion.ToRect());
+        System.Windows.Rect captureRegion = _settings.CaptureRegion.ToRect();
+        using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
         IReadOnlyList<OcrTextLine> ocrLines = await ocrEngine.RecognizeAsync(bitmap, _settings.OcrLanguage, cancellationToken);
         IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(ocrLines);
         if (chatLines.Count == 0)
@@ -51,7 +52,12 @@ public sealed class TranslationCoordinator
             string translated = await provider.TranslateAsync(line, cancellationToken);
             if (!string.IsNullOrWhiteSpace(translated))
             {
-                records.Add(new TranslationRecord(line.Speaker, line.SourceText, translated, DateTime.Now));
+                System.Windows.Rect screenBounds = new(
+                    captureRegion.Left + line.Bounds.Left,
+                    captureRegion.Top + line.Bounds.Top,
+                    line.Bounds.Width,
+                    line.Bounds.Height);
+                records.Add(new TranslationRecord(line.Speaker, line.SourceText, translated, screenBounds, DateTime.Now));
                 _recentHashes[hash] = DateTime.Now;
             }
         }

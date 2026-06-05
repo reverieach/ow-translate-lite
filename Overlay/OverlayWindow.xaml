@@ -4,17 +4,21 @@
         WindowStyle="None" ResizeMode="CanResizeWithGrip" AllowsTransparency="True"
         Background="Transparent" Topmost="True" ShowInTaskbar="False"
         Width="520" Height="180">
-    <Border x:Name="Shell" Background="#DD07090A" BorderBrush="#5578D995" BorderThickness="1" Padding="12">
-        <ItemsControl x:Name="RecordList">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel Margin="0,0,0,10">
-                        <TextBlock Text="{Binding Speaker}" Foreground="#78D995" FontSize="12" FontWeight="SemiBold"/>
-                        <TextBlock Text="{Binding TranslatedText}" Foreground="#F4F7F5" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding SourceText}" Foreground="#91A099" FontSize="11" TextWrapping="Wrap" Opacity="0.7"/>
-                    </StackPanel>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-        </ItemsControl>
-    </Border>
+    <Canvas x:Name="RootCanvas">
+        <Border x:Name="FloatingPanel" BorderBrush="#5578D995" BorderThickness="1" Padding="12"
+                Canvas.Left="0" Canvas.Top="0" Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Window}}"
+                Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Window}}">
+            <ItemsControl x:Name="RecordList">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel Margin="0,0,0,10">
+                            <TextBlock Text="{Binding Speaker}" Foreground="#78D995" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding TranslatedText}" Foreground="#F4F7F5" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding SourceText}" Foreground="#91A099" FontSize="11" TextWrapping="Wrap" Opacity="0.7"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </Border>
+    </Canvas>
 </Window>

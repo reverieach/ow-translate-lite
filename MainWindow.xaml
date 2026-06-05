@@ -117,6 +117,11 @@
                 <TextBox x:Name="ModelBox" Margin="0,4,0,14"/>
 
                 <TextBlock Text="Overlay" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="显示模式" Foreground="#AFC6B6"/>
+                <ComboBox x:Name="OverlayModeCombo" Margin="0,4,0,10">
+                    <ComboBoxItem Content="Floating"/>
+                    <ComboBoxItem Content="Inline"/>
+                </ComboBox>
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
@@ -132,7 +137,8 @@
                         <Slider x:Name="OpacitySlider" Minimum="0.35" Maximum="1" Value="0.86"/>
                     </StackPanel>
                 </Grid>
-                <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,16"/>
+                <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6"/>
+                <TextBlock Text="Floating：关闭鼠标穿透后可拖动黑框；Inline：贴在原文行附近。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
                 <WrapPanel>
                     <Button Content="选择聊天区域" Click="SelectArea_Click"/>

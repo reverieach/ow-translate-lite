@@ -16,6 +16,11 @@ public sealed class AppSettings
     public double OverlayOpacity { get; set; } = 0.86;
     public double OverlayFontSize { get; set; } = 20;
     public bool OverlayClickThrough { get; set; } = true;
+    public string OverlayMode { get; set; } = "Floating";
+    public double? OverlayLeft { get; set; }
+    public double? OverlayTop { get; set; }
+    public double? OverlayWidth { get; set; }
+    public double? OverlayHeight { get; set; }
     public CaptureRegion? CaptureRegion { get; set; }
 }
 

@@ -50,6 +50,7 @@ public partial class MainWindow : Window
         SelectCombo(OcrEngineCombo, settings.OcrEngine);
         SelectCombo(OcrLanguageCombo, settings.OcrLanguage);
         SelectCombo(ProviderCombo, settings.TranslationProvider);
+        SelectCombo(OverlayModeCombo, settings.OverlayMode);
         ApiUrlBox.Text = settings.ApiUrl;
         ApiKeyBox.Password = settings.ApiKey;
         ModelBox.Text = settings.Model;
@@ -67,12 +68,14 @@ public partial class MainWindow : Window
         settings.OcrEngine = GetComboText(OcrEngineCombo);
         settings.OcrLanguage = GetComboText(OcrLanguageCombo);
         settings.TranslationProvider = GetComboText(ProviderCombo);
+        settings.OverlayMode = GetComboText(OverlayModeCombo);
         settings.ApiUrl = ApiUrlBox.Text.Trim();
         settings.ApiKey = ApiKeyBox.Password.Trim();
         settings.Model = ModelBox.Text.Trim();
         settings.OverlayFontSize = FontSizeSlider.Value;
         settings.OverlayOpacity = OpacitySlider.Value;
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
+        SaveOverlayBounds(settings);
         _config.Save();
         _overlay?.ApplySettings(settings);
     }
@@ -187,7 +190,20 @@ public partial class MainWindow : Window
     {
         LogList.Items.Clear();
         _records.Clear();
-        _overlay?.UpdateRecords(_records);
+            _overlay?.UpdateRecords(_records);
+    }
+
+    private void SaveOverlayBounds(AppSettings settings)
+    {
+        if (_overlay is null || settings.OverlayMode != "Floating")
+        {
+            return;
+        }
+
+        settings.OverlayLeft = _overlay.Left;
+        settings.OverlayTop = _overlay.Top;
+        settings.OverlayWidth = _overlay.Width;
+        settings.OverlayHeight = _overlay.Height;
     }
 
     private async Task RunLoopAsync(CancellationToken cancellationToken)
