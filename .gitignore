@@ -6,4 +6,5 @@ app/
 *.suo
 *.log
 *.tmp
+*.zip
 publish/
