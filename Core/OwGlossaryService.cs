@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace OwTranslateLite.Core;
@@ -131,6 +132,12 @@ public sealed class OwGlossaryService
         string normalized = NormalizeOcrText(text);
         string withTerms = ApplyTerms(normalized);
 
+        string quick = TryQuickCompetitiveTranslate(normalized);
+        if (!string.IsNullOrWhiteSpace(quick))
+        {
+            return quick;
+        }
+
         foreach (RewriteRule rule in _rewrites)
         {
             if (string.IsNullOrWhiteSpace(rule.Pattern) || string.IsNullOrWhiteSpace(rule.ZhCn))
@@ -164,6 +171,56 @@ public sealed class OwGlossaryService
         return normalized;
     }
 
+    private string TryQuickCompetitiveTranslate(string text)
+    {
+        string normalized = NormalizeKey(text);
+        IReadOnlyList<GlossaryHit> hits = FindHits(text);
+
+        if (normalized is "group up" or "regroup" or "group")
+        {
+            return "集合";
+        }
+
+        if (normalized is "hello" or "hi" or "hey")
+        {
+            return "你好";
+        }
+
+        bool hasNano = hits.Any(hit => hit.Target == "纳米激素") || normalized.Contains("nano");
+        bool hasBlade = hits.Any(hit => hit.Target == "龙刃") || normalized.Contains("blade");
+        bool soon = Regex.IsMatch(normalized, @"\b(soon|ready|almost|ある|있음)\b");
+        if (hasNano && hasBlade && soon)
+        {
+            return "纳米刀快好了";
+        }
+
+        if (hasNano && soon)
+        {
+            return "纳米激素快好了";
+        }
+
+        if (hasBlade && soon)
+        {
+            return "龙刃快好了";
+        }
+
+        GlossaryHit? skill = hits.FirstOrDefault(hit => hit.Category.Equals("ability", StringComparison.OrdinalIgnoreCase));
+        bool noAfterSkill = Regex.IsMatch(normalized, @"\b(no|none|なし|없음)\b") ||
+                            Regex.IsMatch(normalized, @"\b(suzu|sleep|nade|lamp|deflect|bubble|hook)\s+(no|none)\b");
+        if (skill is not null && noAfterSkill)
+        {
+            return $"{skill.Target}没了";
+        }
+
+        GlossaryHit? focusTarget = hits.FirstOrDefault(hit => hit.Category.Equals("hero", StringComparison.OrdinalIgnoreCase));
+        if (focusTarget is not null && Regex.IsMatch(normalized, @"\b(focus|kill|burn|melt)\b"))
+        {
+            return $"集火{focusTarget.Target}";
+        }
+
+        return "";
+    }
+
     public string BuildPromptContext(IReadOnlyList<GlossaryHit> hits)
     {
         if (hits.Count == 0)
@@ -195,21 +252,31 @@ public sealed class OwGlossaryService
     private sealed class GlossaryFile
     {
         public string? Version { get; set; }
+
+        [JsonPropertyName("ignore_phrases")]
         public List<string>? IgnorePhrases { get; set; }
+
         public List<GlossaryEntry>? Entries { get; set; }
+
+        [JsonPropertyName("local_rewrites")]
         public List<RewriteRule>? LocalRewrites { get; set; }
     }
 
     private sealed class GlossaryEntry
     {
         public string? Category { get; set; }
+
+        [JsonPropertyName("zh_cn")]
         public string? ZhCn { get; set; }
+
         public List<string>? Terms { get; set; }
     }
 
     private sealed class RewriteRule
     {
         public string? Pattern { get; set; }
+
+        [JsonPropertyName("zh_cn")]
         public string? ZhCn { get; set; }
     }
 }
