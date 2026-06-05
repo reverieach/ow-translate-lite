@@ -201,8 +201,13 @@ public sealed class OwGlossaryService
             return "奶我";
         }
 
-        bool hasNano = hits.Any(hit => hit.Target == "纳米激素") || normalized.Contains("nano");
-        bool hasBlade = hits.Any(hit => hit.Target == "龙刃") || normalized.Contains("blade");
+        bool hasNano = hits.Any(hit => hit.Target == "纳米激素") ||
+                       normalized.Contains("nano") ||
+                       raw.Contains("나노");
+        bool hasBlade = hits.Any(hit => hit.Target == "龙刃") ||
+                        normalized.Contains("blade") ||
+                        raw.Contains("블레이드") ||
+                        raw.Contains("용검");
         bool soon = Regex.IsMatch(normalized, @"\b(soon|ready|almost)\b") ||
                     raw.Contains("ある") ||
                     raw.Contains("있음") ||
@@ -220,6 +225,15 @@ public sealed class OwGlossaryService
         if (hasBlade && soon)
         {
             return "龙刃快好了";
+        }
+
+        bool hasSuzu = hits.Any(hit => hit.Target == "铃") ||
+                       normalized.Contains("suzu") ||
+                       raw.Contains("스즈") ||
+                       raw.Contains("鈴");
+        if (hasSuzu && (raw.Contains("빠짐") || raw.Contains("없음") || raw.Contains("なし") || Regex.IsMatch(normalized, @"\b(no|none|used)\b")))
+        {
+            return "铃没了";
         }
 
         GlossaryHit? skill = hits.FirstOrDefault(hit => hit.Category.Equals("ability", StringComparison.OrdinalIgnoreCase));

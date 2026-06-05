@@ -106,7 +106,7 @@
 
                 <TextBlock Text="翻译" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <ComboBox x:Name="ProviderCombo" SelectionChanged="ProviderCombo_SelectionChanged" Margin="0,0,0,10">
-                    <ComboBoxItem Content="Local"/>
+                    <ComboBoxItem Content="Local Rules"/>
                     <ComboBoxItem Content="DeepSeek"/>
                     <ComboBoxItem Content="OpenAI Compatible"/>
                 </ComboBox>
@@ -116,14 +116,17 @@
                 <TextBlock Text="API Key" Foreground="#AFC6B6"/>
                 <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,10"/>
                 <TextBlock Text="Model" Foreground="#AFC6B6"/>
-                <TextBox x:Name="ModelBox" Margin="0,4,0,14"/>
+                <Grid Margin="0,4,0,14">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox x:Name="ModelCombo" IsEditable="True"/>
+                    <Button x:Name="FetchModelsButton" Grid.Column="2" Content="获取模型" Click="FetchModels_Click"/>
+                </Grid>
 
                 <TextBlock Text="Overlay" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                <TextBlock Text="显示模式" Foreground="#AFC6B6"/>
-                <ComboBox x:Name="OverlayModeCombo" Margin="0,4,0,10">
-                    <ComboBoxItem Content="Floating"/>
-                    <ComboBoxItem Content="Inline"/>
-                </ComboBox>
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
@@ -140,7 +143,7 @@
                     </StackPanel>
                 </Grid>
                 <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6"/>
-                <TextBlock Text="Floating：关闭鼠标穿透后可拖动黑框；Inline：贴在原文行附近。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                <TextBlock Text="关闭鼠标穿透后可拖动黑框；内容过多时会在框内向上滚动。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
                 <WrapPanel>
                     <Button Content="选择聊天区域" Click="SelectArea_Click"/>

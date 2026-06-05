@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using OwTranslateLite.Core;
 using OwTranslateLite.Ocr;
 using OwTranslateLite.Overlay;
+using OwTranslateLite.Translation;
 using WpfComboBox = System.Windows.Controls.ComboBox;
 
 namespace OwTranslateLite;
@@ -50,10 +51,10 @@ public partial class MainWindow : Window
         SelectCombo(OcrEngineCombo, settings.OcrEngine);
         SelectCombo(OcrLanguageCombo, settings.OcrLanguage);
         SelectCombo(ProviderCombo, settings.TranslationProvider);
-        SelectCombo(OverlayModeCombo, settings.OverlayMode);
+        EnsureDefaultModelOptions();
         ApiUrlBox.Text = settings.ApiUrl;
         ApiKeyBox.Password = settings.ApiKey;
-        ModelBox.Text = settings.Model;
+        ModelCombo.Text = settings.Model;
         FontSizeSlider.Value = settings.OverlayFontSize;
         OpacitySlider.Value = settings.OverlayOpacity;
         ClickThroughCheck.IsChecked = settings.OverlayClickThrough;
@@ -68,10 +69,9 @@ public partial class MainWindow : Window
         settings.OcrEngine = GetComboText(OcrEngineCombo);
         settings.OcrLanguage = GetComboText(OcrLanguageCombo);
         settings.TranslationProvider = GetComboText(ProviderCombo);
-        settings.OverlayMode = GetComboText(OverlayModeCombo);
         settings.ApiUrl = ApiUrlBox.Text.Trim();
         settings.ApiKey = ApiKeyBox.Password.Trim();
-        settings.Model = ModelBox.Text.Trim();
+        settings.Model = ModelCombo.Text.Trim();
         settings.OverlayFontSize = FontSizeSlider.Value;
         settings.OverlayOpacity = OpacitySlider.Value;
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
@@ -102,15 +102,28 @@ public partial class MainWindow : Window
     private void UpdateProviderPreset()
     {
         string provider = GetComboText(ProviderCombo);
-        bool apiEnabled = provider != "Local";
+        bool apiEnabled = provider != "Local" && provider != "Local Rules";
         ApiUrlBox.IsEnabled = apiEnabled;
         ApiKeyBox.IsEnabled = apiEnabled;
-        ModelBox.IsEnabled = apiEnabled;
+        ModelCombo.IsEnabled = apiEnabled;
+        FetchModelsButton.IsEnabled = apiEnabled;
 
-        if (provider == "DeepSeek" && string.IsNullOrWhiteSpace(ApiUrlBox.Text))
+        if (provider == "DeepSeek")
         {
-            ApiUrlBox.Text = "https://api.deepseek.com/v1/chat/completions";
-            ModelBox.Text = "deepseek-chat";
+            EnsureDefaultModelOptions();
+            if (string.IsNullOrWhiteSpace(ApiUrlBox.Text) ||
+                string.Equals(ApiUrlBox.Text.Trim(), "https://api.deepseek.com/v1/chat/completions", StringComparison.OrdinalIgnoreCase))
+            {
+                ApiUrlBox.Text = "https://api.deepseek.com";
+            }
+
+            string model = ModelCombo.Text.Trim();
+            if (string.IsNullOrWhiteSpace(model) ||
+                string.Equals(model, "deepseek-chat", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(model, "deepseek-reasoner", StringComparison.OrdinalIgnoreCase))
+            {
+                ModelCombo.Text = "deepseek-v4-flash";
+            }
         }
     }
 
@@ -186,16 +199,74 @@ public partial class MainWindow : Window
         AddLog("设置已保存。");
     }
 
+    private async void FetchModels_Click(object sender, RoutedEventArgs e)
+    {
+        SaveSettingsFromUi();
+        if (GetComboText(ProviderCombo) is "Local" or "Local Rules")
+        {
+            AddLog("Local Rules 是测试模式，不需要获取模型。");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.Settings.ApiUrl))
+        {
+            AddLog("请先填写 API URL。");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_config.Settings.ApiKey))
+        {
+            AddLog("请先填写 API Key。");
+            return;
+        }
+
+        FetchModelsButton.IsEnabled = false;
+        try
+        {
+            AddLog("正在获取模型列表...");
+            IReadOnlyList<string> models = await OpenAICompatibleTranslationProvider.FetchModelIdsAsync(
+                _config.Settings,
+                CancellationToken.None);
+
+            if (models.Count == 0)
+            {
+                AddLog("没有从 API 返回可用模型。");
+                return;
+            }
+
+            string current = ModelCombo.Text.Trim();
+            ModelCombo.Items.Clear();
+            foreach (string model in models)
+            {
+                AddModelOption(model);
+            }
+
+            ModelCombo.Text = models.Contains(current, StringComparer.OrdinalIgnoreCase)
+                ? current
+                : models[0];
+            SaveSettingsFromUi();
+            AddLog($"已获取 {models.Count} 个模型。");
+        }
+        catch (Exception ex)
+        {
+            AddLog($"获取模型失败：{ex.Message}");
+        }
+        finally
+        {
+            FetchModelsButton.IsEnabled = true;
+        }
+    }
+
     private void ClearLog_Click(object sender, RoutedEventArgs e)
     {
         LogList.Items.Clear();
         _records.Clear();
-            _overlay?.UpdateRecords(_records);
+        _overlay?.UpdateRecords(_records);
     }
 
     private void SaveOverlayBounds(AppSettings settings)
     {
-        if (_overlay is null || settings.OverlayMode != "Floating")
+        if (_overlay is null)
         {
             return;
         }
@@ -309,5 +380,24 @@ public partial class MainWindow : Window
         string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
         LogList.Items.Add(line);
         LogList.ScrollIntoView(line);
+    }
+
+    private void EnsureDefaultModelOptions()
+    {
+        AddModelOption("deepseek-v4-flash");
+        AddModelOption("deepseek-v4-pro");
+    }
+
+    private void AddModelOption(string model)
+    {
+        foreach (object? item in ModelCombo.Items)
+        {
+            if (string.Equals(item?.ToString(), model, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        ModelCombo.Items.Add(model);
     }
 }

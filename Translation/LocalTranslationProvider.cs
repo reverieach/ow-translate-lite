@@ -11,11 +11,17 @@ public sealed class LocalTranslationProvider : ITranslationProvider
         _glossary = glossary;
     }
 
-    public string Name => "Local";
+    public string Name => "Local Rules";
 
-    public Task<string> TranslateAsync(ParsedChatLine line, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<TranslationResult>> TranslateAsync(IReadOnlyList<ParsedChatLine> lines, CancellationToken cancellationToken)
     {
-        string translated = _glossary.TryLocalTranslate(line.SourceText);
-        return Task.FromResult(_glossary.ApplyTerms(translated));
+        IReadOnlyList<TranslationResult> results = lines
+            .Select(line =>
+            {
+                string translated = _glossary.TryLocalTranslate(line.SourceText);
+                return new TranslationResult(line, _glossary.ApplyTerms(translated));
+            })
+            .ToList();
+        return Task.FromResult(results);
     }
 }

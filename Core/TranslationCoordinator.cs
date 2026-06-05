@@ -41,7 +41,7 @@ public sealed class TranslationCoordinator
 
         _lastAnyMessageVisibleAt = DateTime.Now;
         ITranslationProvider provider = TranslationProviderFactory.Create(_settings, _glossary);
-        List<TranslationRecord> records = [];
+        List<ParsedChatLine> newLines = [];
         foreach (ParsedChatLine line in chatLines)
         {
             string key = CreateMessageKey(line);
@@ -50,17 +50,29 @@ public sealed class TranslationCoordinator
                 continue;
             }
 
-            string translated = await provider.TranslateAsync(line, cancellationToken);
-            if (!string.IsNullOrWhiteSpace(translated))
+            newLines.Add(line);
+        }
+
+        if (newLines.Count == 0)
+        {
+            return Array.Empty<TranslationRecord>();
+        }
+
+        IReadOnlyList<TranslationResult> translations = await provider.TranslateAsync(newLines, cancellationToken);
+        List<TranslationRecord> records = [];
+        foreach (TranslationResult result in translations)
+        {
+            if (string.IsNullOrWhiteSpace(result.TranslatedText))
             {
-                System.Windows.Rect screenBounds = new(
-                    captureRegion.Left + line.Bounds.Left,
-                    captureRegion.Top + line.Bounds.Top,
-                    line.Bounds.Width,
-                    line.Bounds.Height);
-                records.Add(new TranslationRecord(line.Speaker, line.SourceText, translated, screenBounds, DateTime.Now));
-                _seenInCurrentChatCycle.Add(key);
+                continue;
             }
+
+            records.Add(new TranslationRecord(
+                result.SourceLine.Speaker,
+                result.SourceLine.SourceText,
+                result.TranslatedText,
+                DateTime.Now));
+            _seenInCurrentChatCycle.Add(CreateMessageKey(result.SourceLine));
         }
 
         return records;

@@ -7,16 +7,15 @@ public sealed class AppSettings
     public bool FirstRun { get; set; } = true;
     public string OcrEngine { get; set; } = "OneOCR";
     public string OcrLanguage { get; set; } = "auto";
-    public string TranslationProvider { get; set; } = "Local";
-    public string ApiUrl { get; set; } = "https://api.deepseek.com/v1/chat/completions";
+    public string TranslationProvider { get; set; } = "DeepSeek";
+    public string ApiUrl { get; set; } = "https://api.deepseek.com";
     public string ApiKey { get; set; } = "";
-    public string Model { get; set; } = "deepseek-chat";
+    public string Model { get; set; } = "deepseek-v4-flash";
     public int CaptureIntervalMs { get; set; } = 900;
     public int RequestTimeoutSeconds { get; set; } = 20;
     public double OverlayOpacity { get; set; } = 0.86;
     public double OverlayFontSize { get; set; } = 20;
     public bool OverlayClickThrough { get; set; } = true;
-    public string OverlayMode { get; set; } = "Floating";
     public double? OverlayLeft { get; set; }
     public double? OverlayTop { get; set; }
     public double? OverlayWidth { get; set; }
