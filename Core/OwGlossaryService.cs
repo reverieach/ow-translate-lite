@@ -173,22 +173,40 @@ public sealed class OwGlossaryService
 
     private string TryQuickCompetitiveTranslate(string text)
     {
+        string raw = text.ToLowerInvariant();
         string normalized = NormalizeKey(text);
         IReadOnlyList<GlossaryHit> hits = FindHits(text);
 
-        if (normalized is "group up" or "regroup" or "group")
+        if (normalized is "group up" or "regroup" or "group" ||
+            raw.Contains("集合して") ||
+            raw.Contains("모여") ||
+            raw.Contains("뭉쳐"))
         {
             return "集合";
         }
 
-        if (normalized is "hello" or "hi" or "hey")
+        if (normalized is "hello" or "hi" or "hey" ||
+            raw.Contains("안녕") ||
+            raw.Contains("こんにちは") ||
+            raw.Contains("こんばんは"))
         {
             return "你好";
         }
 
+        if (Regex.IsMatch(normalized, @"\b(heal|heals|healing)\b") ||
+            raw.Contains("힐") ||
+            raw.Contains("回復") ||
+            raw.Contains("ヒール"))
+        {
+            return "奶我";
+        }
+
         bool hasNano = hits.Any(hit => hit.Target == "纳米激素") || normalized.Contains("nano");
         bool hasBlade = hits.Any(hit => hit.Target == "龙刃") || normalized.Contains("blade");
-        bool soon = Regex.IsMatch(normalized, @"\b(soon|ready|almost|ある|있음)\b");
+        bool soon = Regex.IsMatch(normalized, @"\b(soon|ready|almost)\b") ||
+                    raw.Contains("ある") ||
+                    raw.Contains("있음") ||
+                    raw.Contains("준비");
         if (hasNano && hasBlade && soon)
         {
             return "纳米刀快好了";
@@ -205,17 +223,29 @@ public sealed class OwGlossaryService
         }
 
         GlossaryHit? skill = hits.FirstOrDefault(hit => hit.Category.Equals("ability", StringComparison.OrdinalIgnoreCase));
-        bool noAfterSkill = Regex.IsMatch(normalized, @"\b(no|none|なし|없음)\b") ||
-                            Regex.IsMatch(normalized, @"\b(suzu|sleep|nade|lamp|deflect|bubble|hook)\s+(no|none)\b");
+        bool noAfterSkill = Regex.IsMatch(normalized, @"\b(no|none|used)\b") ||
+                            raw.Contains("なし") ||
+                            raw.Contains("없음") ||
+                            raw.Contains("빠짐") ||
+                            Regex.IsMatch(normalized, @"\b(suzu|sleep|nade|lamp|deflect|bubble|hook)\s+(no|none|used)\b");
         if (skill is not null && noAfterSkill)
         {
-            return $"{skill.Target}没了";
+            GlossaryHit? hero = hits.FirstOrDefault(hit => hit.Category.Equals("hero", StringComparison.OrdinalIgnoreCase));
+            return hero is null ? $"{skill.Target}没了" : $"{hero.Target}没{skill.Target}";
         }
 
         GlossaryHit? focusTarget = hits.FirstOrDefault(hit => hit.Category.Equals("hero", StringComparison.OrdinalIgnoreCase));
-        if (focusTarget is not null && Regex.IsMatch(normalized, @"\b(focus|kill|burn|melt)\b"))
+        if (focusTarget is not null &&
+            (Regex.IsMatch(normalized, @"\b(focus|kill|burn|melt)\b") ||
+             raw.Contains("점사") ||
+             raw.Contains("フォーカス")))
         {
             return $"集火{focusTarget.Target}";
+        }
+
+        if (raw.Contains("뒤") || raw.Contains("裏") || Regex.IsMatch(normalized, @"\b(flank|behind|backline)\b"))
+        {
+            return "有人绕后";
         }
 
         return "";

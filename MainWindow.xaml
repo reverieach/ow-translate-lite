@@ -66,7 +66,8 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0">
+            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+            <StackPanel>
                 <Border x:Name="FirstRunPanel" Background="#18211B" BorderBrush="#78D995" BorderThickness="1" Padding="14" Margin="0,0,0,14">
                     <StackPanel>
                         <TextBlock Text="首次配置" FontSize="17" FontWeight="SemiBold"/>
@@ -93,6 +94,7 @@
                         <ComboBoxItem Content="Windows OCR"/>
                     </ComboBox>
                     <ComboBox x:Name="OcrLanguageCombo" Grid.Row="1" Grid.Column="2">
+                        <ComboBoxItem Content="auto"/>
                         <ComboBoxItem Content="en"/>
                         <ComboBoxItem Content="ja"/>
                         <ComboBoxItem Content="ko"/>
@@ -134,7 +136,7 @@
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="透明度" Foreground="#AFC6B6"/>
-                        <Slider x:Name="OpacitySlider" Minimum="0.35" Maximum="1" Value="0.86"/>
+                        <Slider x:Name="OpacitySlider" Minimum="0" Maximum="1" Value="0.86"/>
                     </StackPanel>
                 </Grid>
                 <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6"/>
@@ -150,6 +152,7 @@
                     <Button Content="保存设置" Background="#9BB7F0" BorderBrush="#9BB7F0" Click="SaveSettings_Click"/>
                 </WrapPanel>
             </StackPanel>
+            </ScrollViewer>
 
             <Grid Grid.Column="2">
                 <Grid.RowDefinitions>

@@ -7,6 +7,7 @@ using System.Windows.Media;
 using OwTranslateLite.Core;
 using MediaBrushes = System.Windows.Media.Brushes;
 using MediaColor = System.Windows.Media.Color;
+using WpfPoint = System.Windows.Point;
 
 namespace OwTranslateLite.Overlay;
 
@@ -61,9 +62,10 @@ public partial class OverlayWindow : Window
             return;
         }
 
-        Left = captureRegion.Left;
-        Top = Math.Max(0, captureRegion.Top - Height - 12);
-        Width = Math.Max(420, captureRegion.Width);
+        Rect dipRegion = ToDipRect(captureRegion);
+        Left = dipRegion.Left;
+        Top = Math.Max(0, dipRegion.Top - Height - 12);
+        Width = Math.Max(420, dipRegion.Width);
     }
 
     private void ApplyModeLayout(AppSettings settings)
@@ -90,10 +92,11 @@ public partial class OverlayWindow : Window
 
     private void MoveToCaptureRegion(Rect captureRegion)
     {
-        Left = captureRegion.Left;
-        Top = captureRegion.Top;
-        Width = Math.Max(80, captureRegion.Width);
-        Height = Math.Max(30, captureRegion.Height);
+        Rect dipRegion = ToDipRect(captureRegion);
+        Left = dipRegion.Left;
+        Top = dipRegion.Top;
+        Width = Math.Max(80, dipRegion.Width);
+        Height = Math.Max(30, dipRegion.Height);
     }
 
     private void RenderRecords()
@@ -109,7 +112,7 @@ public partial class OverlayWindow : Window
         else
         {
             FloatingPanel.Visibility = Visibility.Visible;
-            RecordList.ItemsSource = _records.Reverse().ToList();
+            RecordList.ItemsSource = _records.ToList();
         }
     }
 
@@ -121,11 +124,13 @@ public partial class OverlayWindow : Window
         }
 
         Rect captureRegion = _settings.CaptureRegion.ToRect();
+        Rect captureDipRegion = ToDipRect(captureRegion);
         foreach (TranslationRecord record in _records.TakeLast(8))
         {
             Border label = CreateInlineLabel(record);
-            double x = Math.Max(0, record.ScreenBounds.Left - captureRegion.Left);
-            double y = Math.Max(0, record.ScreenBounds.Top - captureRegion.Top + record.ScreenBounds.Height + 2);
+            Rect recordDipBounds = ToDipRect(record.ScreenBounds);
+            double x = Math.Max(0, recordDipBounds.Left - captureDipRegion.Left);
+            double y = Math.Max(0, recordDipBounds.Top - captureDipRegion.Top + recordDipBounds.Height + 2);
             label.MaxWidth = Math.Max(180, Width - x - 8);
             Canvas.SetLeft(label, x);
             Canvas.SetTop(label, Math.Min(Math.Max(0, Height - 36), y));
@@ -147,7 +152,7 @@ public partial class OverlayWindow : Window
         return new Border
         {
             Background = CreateBackgroundBrush(_settings?.OverlayOpacity ?? 0.86),
-            BorderBrush = new SolidColorBrush(MediaColor.FromArgb(120, 120, 217, 149)),
+            BorderBrush = CreateBorderBrush(_settings?.OverlayOpacity ?? 0.86),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(6, 3, 6, 4),
             Child = text
@@ -165,12 +170,34 @@ public partial class OverlayWindow : Window
     private void ApplyBackgroundOpacity(double opacity)
     {
         FloatingPanel.Background = CreateBackgroundBrush(opacity);
+        FloatingPanel.BorderBrush = CreateBorderBrush(opacity);
     }
 
     private static SolidColorBrush CreateBackgroundBrush(double opacity)
     {
         byte alpha = (byte)(Math.Clamp(opacity, 0.0, 1.0) * 255);
         return new SolidColorBrush(MediaColor.FromArgb(alpha, 7, 9, 10));
+    }
+
+    private static SolidColorBrush CreateBorderBrush(double opacity)
+    {
+        byte alpha = (byte)(Math.Clamp(opacity, 0.0, 1.0) * 120);
+        return new SolidColorBrush(MediaColor.FromArgb(alpha, 120, 217, 149));
+    }
+
+    private Rect ToDipRect(Rect deviceRect)
+    {
+        nint handle = new WindowInteropHelper(this).EnsureHandle();
+        PresentationSource? source = PresentationSource.FromVisual(this) ?? HwndSource.FromHwnd(handle);
+        if (source?.CompositionTarget is null)
+        {
+            return deviceRect;
+        }
+
+        Matrix transform = source.CompositionTarget.TransformFromDevice;
+        WpfPoint topLeft = transform.Transform(new WpfPoint(deviceRect.Left, deviceRect.Top));
+        WpfPoint bottomRight = transform.Transform(new WpfPoint(deviceRect.Right, deviceRect.Bottom));
+        return new Rect(topLeft, bottomRight);
     }
 
     private void ApplyClickThrough(bool enabled)

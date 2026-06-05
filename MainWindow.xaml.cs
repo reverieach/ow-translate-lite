@@ -233,6 +233,14 @@ public partial class MainWindow : Window
                         _overlay?.UpdateRecords(_records);
                     });
                 }
+                else if (_coordinator.ChatCycleJustReset)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        _records.Clear();
+                        _overlay?.UpdateRecords(_records);
+                    });
+                }
 
                 stopwatch.Stop();
                 Dispatcher.Invoke(() => LatencyText.Text = $"{stopwatch.ElapsedMilliseconds} ms");

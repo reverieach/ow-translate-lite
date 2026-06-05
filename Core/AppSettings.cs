@@ -6,7 +6,7 @@ public sealed class AppSettings
 {
     public bool FirstRun { get; set; } = true;
     public string OcrEngine { get; set; } = "OneOCR";
-    public string OcrLanguage { get; set; } = "en";
+    public string OcrLanguage { get; set; } = "auto";
     public string TranslationProvider { get; set; } = "Local";
     public string ApiUrl { get; set; } = "https://api.deepseek.com/v1/chat/completions";
     public string ApiKey { get; set; } = "";

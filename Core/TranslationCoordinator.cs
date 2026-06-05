@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using OwTranslateLite.Ocr;
 using OwTranslateLite.Translation;
 
@@ -10,8 +8,11 @@ public sealed class TranslationCoordinator
     private readonly AppSettings _settings;
     private readonly OwGlossaryService _glossary;
     private readonly OwChatParser _parser;
-    private readonly Dictionary<string, DateTime> _recentHashes = new();
-    private HashSet<string> _visibleLastFrame = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _seenInCurrentChatCycle = new(StringComparer.Ordinal);
+    private DateTime? _lastAnyMessageVisibleAt;
+    private static readonly TimeSpan ChatHiddenReset = TimeSpan.FromSeconds(3);
+
+    public bool ChatCycleJustReset { get; private set; }
 
     public TranslationCoordinator(AppSettings settings, OwGlossaryService glossary)
     {
@@ -22,6 +23,7 @@ public sealed class TranslationCoordinator
 
     public async Task<IReadOnlyList<TranslationRecord>> ProcessAsync(IOcrEngine ocrEngine, CancellationToken cancellationToken)
     {
+        ChatCycleJustReset = false;
         if (_settings.CaptureRegion is null)
         {
             return Array.Empty<TranslationRecord>();
@@ -33,18 +35,17 @@ public sealed class TranslationCoordinator
         IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(ocrLines);
         if (chatLines.Count == 0)
         {
+            ChatCycleJustReset = ResetCycleIfChatStayedHidden();
             return Array.Empty<TranslationRecord>();
         }
 
+        _lastAnyMessageVisibleAt = DateTime.Now;
         ITranslationProvider provider = TranslationProviderFactory.Create(_settings, _glossary);
         List<TranslationRecord> records = [];
-        HashSet<string> visibleThisFrame = new(StringComparer.Ordinal);
         foreach (ParsedChatLine line in chatLines)
         {
-            string hash = Hash(CreateMessageKey(line));
-            visibleThisFrame.Add(hash);
-
-            if (_visibleLastFrame.Contains(hash) || IsRecentDuplicate(hash))
+            string key = CreateMessageKey(line);
+            if (_seenInCurrentChatCycle.Contains(key))
             {
                 continue;
             }
@@ -58,46 +59,37 @@ public sealed class TranslationCoordinator
                     line.Bounds.Width,
                     line.Bounds.Height);
                 records.Add(new TranslationRecord(line.Speaker, line.SourceText, translated, screenBounds, DateTime.Now));
-                _recentHashes[hash] = DateTime.Now;
+                _seenInCurrentChatCycle.Add(key);
             }
         }
 
-        _visibleLastFrame = visibleThisFrame;
-        CleanupHashes();
         return records;
     }
 
-    private bool IsRecentDuplicate(string hash)
+    private bool ResetCycleIfChatStayedHidden()
     {
-        return _recentHashes.TryGetValue(hash, out DateTime lastSeen) &&
-               DateTime.Now - lastSeen < TimeSpan.FromSeconds(120);
-    }
-
-    private void CleanupHashes()
-    {
-        foreach (string key in _recentHashes.Where(pair => DateTime.Now - pair.Value > TimeSpan.FromMinutes(5)).Select(pair => pair.Key).ToList())
+        if (_lastAnyMessageVisibleAt is null)
         {
-            _recentHashes.Remove(key);
+            return false;
         }
+
+        if (DateTime.Now - _lastAnyMessageVisibleAt.Value >= ChatHiddenReset)
+        {
+            _seenInCurrentChatCycle.Clear();
+            _lastAnyMessageVisibleAt = null;
+            return true;
+        }
+
+        return false;
     }
 
-    private static string CreateMessageKey(ParsedChatLine line)
-    {
-        string speaker = NormalizeForHash(line.Speaker);
-        string text = NormalizeForHash(line.SourceText);
-        return $"{speaker}:{text}";
-    }
+    private static string CreateMessageKey(ParsedChatLine line) =>
+        $"{NormalizeForHash(line.Speaker)}:{NormalizeForHash(line.SourceText)}";
 
     private static string NormalizeForHash(string value)
     {
         string lower = value.ToLowerInvariant();
         lower = System.Text.RegularExpressions.Regex.Replace(lower, @"[^\p{L}\p{N}]+", " ");
         return System.Text.RegularExpressions.Regex.Replace(lower, @"\s+", " ").Trim();
-    }
-
-    private static string Hash(string value)
-    {
-        byte[] data = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-        return Convert.ToHexString(data);
     }
 }
