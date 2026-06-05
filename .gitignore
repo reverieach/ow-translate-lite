@@ -8,3 +8,4 @@ app/
 *.tmp
 *.zip
 publish/
+dist/
