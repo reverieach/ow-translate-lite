@@ -33,13 +33,10 @@ public partial class MainWindow : Window
     private TranslationCoordinator _coordinator = null!;
     private CancellationTokenSource? _loopCts;
     private CancellationTokenSource? _replyTranslationCts;
-    private IOcrEngine? _currentOcrEngine;
-    private readonly SemaphoreSlim _ocrEngineGate = new(1, 1);
+    private readonly OcrEngineManager _ocrEngineManager = new();
     private readonly Queue<ParsedChatLine> _translationQueue = [];
     private readonly object _translationQueueLock = new();
     private Task? _translationWorkerTask;
-    private string? _currentOcrEngineName;
-    private string? _currentOcrLanguage;
     private string? _activeRunSettingsKey;
     private DateTime? _pausedAt;
     private DateTime? _lastTranslationCompletedAt;
@@ -90,7 +87,7 @@ public partial class MainWindow : Window
         _replyHotKey.Dispose();
         _replyTranslationCts?.Cancel();
         StopLoop(hideOverlay: false, clearOverlay: false);
-        InvalidateOcrEngine();
+        _ocrEngineManager.Dispose();
         SaveSettingsFromUi();
         _overlayController.Close();
     }
@@ -532,17 +529,11 @@ public partial class MainWindow : Window
             Stopwatch stopwatch = Stopwatch.StartNew();
             try
             {
-                IReadOnlyList<ParsedChatLine> newLines;
-                await _ocrEngineGate.WaitAsync(cancellationToken);
-                try
-                {
-                    IOcrEngine engine = GetOcrEngine();
-                    newLines = await _coordinator.DetectNewLinesAsync(engine, cancellationToken);
-                }
-                finally
-                {
-                    _ocrEngineGate.Release();
-                }
+                IReadOnlyList<ParsedChatLine> newLines = await _ocrEngineManager.UseAsync(
+                    _config.Settings.OcrEngine,
+                    _config.Settings.OcrLanguage,
+                    (engine, token) => _coordinator.DetectNewLinesAsync(engine, token),
+                    cancellationToken);
 
                 if (!IsActiveGeneration(generation))
                 {
@@ -800,23 +791,6 @@ public partial class MainWindow : Window
             now - existing.Timestamp <= DisplayDuplicateWindow &&
             OcrDedupeNormalizer.IsSpeakerMatch(NormalizeSpeakerForCompare(existing.Speaker), speaker) &&
             IsSimilarText(source, NormalizeTextForCompare(existing.SourceText)));
-    }
-
-    private IOcrEngine GetOcrEngine()
-    {
-        if (_currentOcrEngine is not null &&
-            _currentOcrEngineName == _config.Settings.OcrEngine &&
-            _currentOcrLanguage == _config.Settings.OcrLanguage)
-        {
-            return _currentOcrEngine;
-        }
-
-        DisposeCurrentOcrEngineUnlocked();
-        _currentOcrEngineName = _config.Settings.OcrEngine;
-        _currentOcrLanguage = _config.Settings.OcrLanguage;
-        _currentOcrEngine = new OneOcrEngine();
-
-        return _currentOcrEngine;
     }
 
     private void RestartLoop(bool resetChatCycle, bool resetOcrEngine, string message)
@@ -1230,32 +1204,7 @@ public partial class MainWindow : Window
 
     private void InvalidateOcrEngine()
     {
-        DisposeCurrentOcrEngine();
-        _currentOcrEngineName = null;
-        _currentOcrLanguage = null;
-    }
-
-    private void DisposeCurrentOcrEngine()
-    {
-        _ocrEngineGate.Wait();
-        try
-        {
-            DisposeCurrentOcrEngineUnlocked();
-        }
-        finally
-        {
-            _ocrEngineGate.Release();
-        }
-    }
-
-    private void DisposeCurrentOcrEngineUnlocked()
-    {
-        if (_currentOcrEngine is IDisposable disposable)
-        {
-            disposable.Dispose();
-        }
-
-        _currentOcrEngine = null;
+        _ocrEngineManager.Invalidate();
     }
 
     private bool IsActiveGeneration(int generation) =>
