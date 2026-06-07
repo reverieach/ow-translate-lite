@@ -15,6 +15,7 @@ namespace OwTranslateLite;
 public partial class MainWindow : Window
 {
     private static readonly TimeSpan OverlayIdleHideDelay = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan OverlayHistoryPeekDuration = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TranslationBatchWindow = TimeSpan.FromMilliseconds(120);
     private static readonly TimeSpan DisplayDuplicateWindow = TimeSpan.FromSeconds(90);
     private const int MaxOverlayRecords = 50;
@@ -36,7 +37,10 @@ public partial class MainWindow : Window
     private string? _activeRunSettingsKey;
     private DateTime? _pausedAt;
     private DateTime? _lastTranslationCompletedAt;
+    private DateTime? _historyPeekOverlayUntil;
     private bool _overlayHiddenByIdle;
+    private bool _overlayVisibleForHistoryPeek;
+    private bool _wasChatVisibleLastTick;
     private bool _isRunning;
     private bool _isLoadingSettings;
     private bool _isApplyingOverlaySettings;
@@ -469,7 +473,10 @@ public partial class MainWindow : Window
         _activeRunSettingsKey = null;
         _pausedAt = null;
         _lastTranslationCompletedAt = null;
+        _historyPeekOverlayUntil = null;
+        _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
+        _wasChatVisibleLastTick = false;
         LoadSettingsToUi();
         ApplyRunningState();
         AddLog("本机数据已清除，已恢复默认配置。");
@@ -505,9 +512,16 @@ public partial class MainWindow : Window
             {
                 IOcrEngine engine = GetOcrEngine();
                 IReadOnlyList<ParsedChatLine> newLines = await _coordinator.DetectNewLinesAsync(engine, cancellationToken);
+                bool hasVisibleChat = _coordinator.HasVisibleChat;
+                bool chatJustBecameVisible = hasVisibleChat && !_wasChatVisibleLastTick;
+                _wasChatVisibleLastTick = hasVisibleChat;
                 if (newLines.Count > 0)
                 {
                     EnqueueTranslationLines(newLines, cancellationToken);
+                }
+                else if (chatJustBecameVisible)
+                {
+                    Dispatcher.Invoke(ShowOverlayForHistoryPeek);
                 }
                 else if (_coordinator.ChatCycleJustReset)
                 {
@@ -690,6 +704,8 @@ public partial class MainWindow : Window
 
         TrimOverlayRecords();
         _lastTranslationCompletedAt = DateTime.Now;
+        _historyPeekOverlayUntil = null;
+        _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
         EnsureOverlay();
         _overlay?.Show();
@@ -748,7 +764,10 @@ public partial class MainWindow : Window
         _loopCts = new CancellationTokenSource();
         _isRunning = true;
         _pausedAt = null;
+        _historyPeekOverlayUntil = null;
+        _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
+        _wasChatVisibleLastTick = false;
         _activeRunSettingsKey = CreateRunSettingsKey();
         StatusText.Text = "运行中";
         ApplyRunningState();
@@ -774,7 +793,10 @@ public partial class MainWindow : Window
         if (hideOverlay)
         {
             _pausedAt = DateTime.Now;
+            _historyPeekOverlayUntil = null;
+            _overlayVisibleForHistoryPeek = false;
             _overlayHiddenByIdle = false;
+            _wasChatVisibleLastTick = false;
             _overlay?.Hide();
         }
     }
@@ -1024,6 +1046,8 @@ public partial class MainWindow : Window
     {
         _records.Clear();
         _lastTranslationCompletedAt = null;
+        _historyPeekOverlayUntil = null;
+        _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
         _overlay?.UpdateRecords(_records);
     }
@@ -1046,7 +1070,25 @@ public partial class MainWindow : Window
 
     private void MaybeHideOverlayAfterIdle()
     {
-        if (!_isRunning || _overlay is null || _overlayHiddenByIdle || _coordinator.HasVisibleChat)
+        if (!_isRunning || _overlay is null)
+        {
+            return;
+        }
+
+        if (_overlayVisibleForHistoryPeek)
+        {
+            if (_historyPeekOverlayUntil is DateTime until && DateTime.Now >= until)
+            {
+                _overlay.Hide();
+                _overlayVisibleForHistoryPeek = false;
+                _historyPeekOverlayUntil = null;
+                _overlayHiddenByIdle = true;
+            }
+
+            return;
+        }
+
+        if (_overlayHiddenByIdle || _coordinator.HasVisibleChat)
         {
             return;
         }
@@ -1059,6 +1101,27 @@ public partial class MainWindow : Window
 
         _overlay.Hide();
         _overlayHiddenByIdle = true;
+    }
+
+    private void ShowOverlayForHistoryPeek()
+    {
+        if (!_isRunning || _records.Count == 0)
+        {
+            return;
+        }
+
+        EnsureOverlay();
+        if (_overlay is null || _overlay.IsVisible)
+        {
+            return;
+        }
+
+        _historyPeekOverlayUntil = DateTime.Now + OverlayHistoryPeekDuration;
+        _overlayVisibleForHistoryPeek = true;
+        _overlayHiddenByIdle = false;
+        _overlay.UpdateRecords(_records);
+        _overlay.Show();
+        AppendDedupeLog("history-peek show overlay for visible chat without new messages");
     }
 
     private void InvalidateOcrEngine()

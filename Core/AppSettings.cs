@@ -14,15 +14,21 @@ public sealed class AppSettings
     public string Model { get; set; } = "deepseek-v4-flash";
     public int CaptureIntervalMs { get; set; } = 900;
     public int RequestTimeoutSeconds { get; set; } = 20;
-    public double OverlayOpacity { get; set; } = 0.86;
-    public double OverlayFontSize { get; set; } = 20;
+    public double OverlayOpacity { get; set; } = 0.153;
+    public double OverlayFontSize { get; set; } = 14.92;
     public bool OverlayClickThrough { get; set; } = true;
     public bool EnableDedupeDebugLog { get; set; }
-    public double? OverlayLeft { get; set; }
-    public double? OverlayTop { get; set; }
-    public double? OverlayWidth { get; set; }
-    public double? OverlayHeight { get; set; }
-    public CaptureRegion? CaptureRegion { get; set; }
+    public double? OverlayLeft { get; set; } = 42;
+    public double? OverlayTop { get; set; } = 151;
+    public double? OverlayWidth { get; set; } = 454;
+    public double? OverlayHeight { get; set; } = 276;
+    public CaptureRegion? CaptureRegion { get; set; } = new()
+    {
+        Left = 45,
+        Top = 398,
+        Width = 447,
+        Height = 276
+    };
 }
 
 public sealed class CaptureRegion

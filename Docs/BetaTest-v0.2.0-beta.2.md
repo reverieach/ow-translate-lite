@@ -6,6 +6,8 @@
 - overlay 拖动或调整大小后会自动保存位置和大小。
 - 增加 beta 测试入口：打开数据目录、打开日志、打开去重日志、导出诊断、清除本机数据。
 - 增加运行日志、崩溃日志和可选去重调试日志：`%AppData%\OWTranslatorLite\runtime.log`、`%AppData%\OWTranslatorLite\crash.log`、`%AppData%\OWTranslatorLite\dedupe.log`。
+- 内置一组默认聊天区域和 overlay 位置；测试者可以直接开始，但不同分辨率或 UI 缩放下仍建议重新框选。
+- 如果打开聊天历史但没有新消息，overlay 会临时显示最近翻译约 5 秒，方便回看历史。
 - 保留 beta.1 的 OneOCR 彩色预处理、Quick Start、异步翻译队列和重复过滤逻辑。
 
 ## 推荐配置
@@ -30,6 +32,7 @@
 - 框选 OW 左侧聊天消息文本框部分。
 - 需要完整包含 `[玩家名]：正文` 这一整行。
 - 不要框太大，尽量避开头像、HUD、菜单和背景噪声。
+- 当前版本带默认区域；如果翻译不动、漏字或位置不对，第一步先重新框选。
 
 ## Overlay
 
