@@ -136,7 +136,8 @@
                     </StackPanel>
                 </Grid>
                 <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6" Checked="OverlaySettings_Changed" Unchecked="OverlaySettings_Changed"/>
-                <TextBlock Text="默认开启鼠标穿透，不挡游戏操作；翻译框底部输入条仍可点击回话。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <CheckBox x:Name="ReplyInputBarCheck" Content="显示回话输入条" Margin="0,0,0,6" Checked="OverlaySettings_Changed" Unchecked="OverlaySettings_Changed"/>
+                <TextBlock Text="默认开启鼠标穿透，不挡游戏操作；回话输入条可点击输入，关闭后仍可用热键临时唤起。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,6"/>
                 <Grid Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>

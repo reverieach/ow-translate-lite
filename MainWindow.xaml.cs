@@ -113,6 +113,7 @@ public partial class MainWindow : Window
             FontSizeSlider.Value = settings.OverlayFontSize;
             OpacitySlider.Value = settings.OverlayOpacity;
             ClickThroughCheck.IsChecked = settings.OverlayClickThrough;
+            ReplyInputBarCheck.IsChecked = settings.ShowReplyInputBar;
             ReplyHotkeyCheck.IsChecked = settings.EnableReplyHotkey;
             SelectCombo(ReplyHotkeyCombo, settings.ReplyHotkey);
             DedupeDebugCheck.IsChecked = settings.EnableDedupeDebugLog;
@@ -138,6 +139,7 @@ public partial class MainWindow : Window
         settings.OverlayFontSize = FontSizeSlider.Value;
         settings.OverlayOpacity = OpacitySlider.Value;
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
+        settings.ShowReplyInputBar = ReplyInputBarCheck.IsChecked == true;
         settings.EnableReplyHotkey = ReplyHotkeyCheck.IsChecked == true;
         settings.ReplyHotkey = GetComboText(ReplyHotkeyCombo);
         settings.EnableDedupeDebugLog = DedupeDebugCheck.IsChecked == true;

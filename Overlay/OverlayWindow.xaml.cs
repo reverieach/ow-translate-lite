@@ -62,6 +62,7 @@ public partial class OverlayWindow : Window
         ReplyInputBox.FontSize = settings.OverlayFontSize;
         ReplyTargetCombo.FontSize = Math.Max(11, settings.OverlayFontSize - 2);
         ApplyBackgroundOpacity(settings.OverlayOpacity);
+        ApplyReplyInputVisibility();
         ApplyClickThrough(_isReplyMode ? false : settings.OverlayClickThrough);
         ApplySavedBounds(settings);
         RenderRecords();
@@ -71,6 +72,7 @@ public partial class OverlayWindow : Window
     {
         _isReplyMode = true;
         SetReplyTargetLanguage(replyTargetLanguage, effectiveLanguage);
+        ApplyReplyInputVisibility();
         ApplyClickThrough(false);
         Show();
         Activate();
@@ -86,6 +88,7 @@ public partial class OverlayWindow : Window
         _isReplyMode = false;
         ReplyInputBox.Clear();
         Keyboard.ClearFocus();
+        ApplyReplyInputVisibility();
         ApplyClickThrough(_settings?.OverlayClickThrough == true);
     }
 
@@ -116,6 +119,7 @@ public partial class OverlayWindow : Window
         ReplyInputBox.Clear();
         Keyboard.ClearFocus();
         _isReplyMode = false;
+        ApplyReplyInputVisibility();
         ApplyClickThrough(_settings?.OverlayClickThrough == true);
     }
 
@@ -233,6 +237,13 @@ public partial class OverlayWindow : Window
         ReplyInputPanel.Background = System.Windows.Media.Brushes.Transparent;
         ReplyInputBox.Background = CreateInputBoxBrush(opacity);
         ReplyTargetCombo.Background = CreateInputBoxBrush(opacity);
+    }
+
+    private void ApplyReplyInputVisibility()
+    {
+        ReplyInputPanel.Visibility = _isReplyMode || _settings?.ShowReplyInputBar == true
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private static SolidColorBrush CreateBackgroundBrush(double opacity)
