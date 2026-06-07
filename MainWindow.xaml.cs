@@ -36,6 +36,7 @@ public partial class MainWindow : Window
     private readonly OcrEngineManager _ocrEngineManager = new();
     private readonly Queue<ParsedChatLine> _translationQueue = [];
     private readonly object _translationQueueLock = new();
+    private readonly TranslationQueueStatusTracker _translationQueueStatus = new();
     private Task? _translationWorkerTask;
     private string? _activeRunSettingsKey;
     private DateTime? _pausedAt;
@@ -479,7 +480,8 @@ public partial class MainWindow : Window
         SaveSettingsFromUi();
         string diagnosticsPath = _diagnostics.ExportDiagnostics(
             _config.Settings,
-            LogList.Items.Cast<object>().Select(static item => item.ToString() ?? ""));
+            LogList.Items.Cast<object>().Select(static item => item.ToString() ?? ""),
+            CreateRuntimeDiagnosticsSnapshot());
         AddLog($"已导出诊断：{diagnosticsPath}");
     }
 
@@ -612,6 +614,7 @@ public partial class MainWindow : Window
     private void EnqueueTranslationLines(IReadOnlyList<ParsedChatLine> lines, int generation, CancellationToken cancellationToken)
     {
         List<ParsedChatLine> dropped = [];
+        int queuedCount;
         lock (_translationQueueLock)
         {
             foreach (ParsedChatLine line in lines)
@@ -623,7 +626,11 @@ public partial class MainWindow : Window
             {
                 dropped.Add(_translationQueue.Dequeue());
             }
+
+            queuedCount = _translationQueue.Count;
         }
+
+        _translationQueueStatus.SetQueuedCount(queuedCount);
 
         if (dropped.Count > 0)
         {
@@ -667,9 +674,11 @@ public partial class MainWindow : Window
 
                 try
                 {
+                    _translationQueueStatus.BeginBatch(batch.Count);
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     IReadOnlyList<TranslationRecord> records = await _coordinator.TranslateAsync(batch, cancellationToken);
                     stopwatch.Stop();
+                    _translationQueueStatus.CompleteBatch(batch.Count, stopwatch.Elapsed);
                     if (records.Count > 0 && IsActiveGeneration(generation))
                     {
                         Dispatcher.Invoke(() =>
@@ -686,11 +695,13 @@ public partial class MainWindow : Window
                 }
                 catch (OperationCanceledException)
                 {
+                    _translationQueueStatus.CancelBatch(batch.Count);
                     _coordinator.ReleasePendingTranslations(batch);
                     break;
                 }
                 catch (Exception ex)
                 {
+                    _translationQueueStatus.FailBatch(batch.Count, ex.Message);
                     _coordinator.ReleasePendingTranslations(batch);
                     Dispatcher.Invoke(() =>
                     {
@@ -725,10 +736,12 @@ public partial class MainWindow : Window
         {
             if (_translationQueue.Count == 0)
             {
+                _translationQueueStatus.SetQueuedCount(0);
                 return batch;
             }
 
             batch.Add(_translationQueue.Dequeue());
+            _translationQueueStatus.SetQueuedCount(_translationQueue.Count);
         }
 
         try
@@ -747,6 +760,8 @@ public partial class MainWindow : Window
             {
                 batch.Add(_translationQueue.Dequeue());
             }
+
+            _translationQueueStatus.SetQueuedCount(_translationQueue.Count);
         }
 
         return batch;
@@ -914,6 +929,15 @@ public partial class MainWindow : Window
         }
 
         _diagnostics.AppendDedupeLog(message);
+    }
+
+    private RuntimeDiagnosticsSnapshot CreateRuntimeDiagnosticsSnapshot()
+    {
+        return new RuntimeDiagnosticsSnapshot(
+            _isRunning,
+            Volatile.Read(ref _runGeneration),
+            _records.Count,
+            _translationQueueStatus.Snapshot());
     }
 
     private async void Overlay_ReplySubmitted(object? sender, ReplySubmittedEventArgs e)
@@ -1136,6 +1160,8 @@ public partial class MainWindow : Window
         {
             _translationQueue.Clear();
         }
+
+        _translationQueueStatus.Reset();
     }
 
     private void TrimOverlayRecords()

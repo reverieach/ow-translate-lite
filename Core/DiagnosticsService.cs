@@ -25,7 +25,10 @@ public sealed class DiagnosticsService
         OpenShellPath(ConfigStore.DedupeLogPath);
     }
 
-    public string ExportDiagnostics(AppSettings settings, IEnumerable<string> uiLogLines)
+    public string ExportDiagnostics(
+        AppSettings settings,
+        IEnumerable<string> uiLogLines,
+        RuntimeDiagnosticsSnapshot? runtime)
     {
         Directory.CreateDirectory(ConfigStore.AppDirectory);
         string diagnosticsPath = Path.Combine(
@@ -34,7 +37,7 @@ public sealed class DiagnosticsService
 
         File.WriteAllText(
             diagnosticsPath,
-            BuildDiagnosticsReport(settings, uiLogLines),
+            BuildDiagnosticsReport(settings, uiLogLines, runtime),
             new UTF8Encoding(false));
 
         OpenShellPath(ConfigStore.AppDirectory);
@@ -73,7 +76,10 @@ public sealed class DiagnosticsService
         }
     }
 
-    private static string BuildDiagnosticsReport(AppSettings settings, IEnumerable<string> uiLogLines)
+    private static string BuildDiagnosticsReport(
+        AppSettings settings,
+        IEnumerable<string> uiLogLines,
+        RuntimeDiagnosticsSnapshot? runtime)
     {
         StringBuilder builder = new();
         builder.AppendLine("OW Translator Lite Beta Diagnostics");
@@ -108,6 +114,20 @@ public sealed class DiagnosticsService
         builder.AppendLine($"EnableDedupeDebugLog: {settings.EnableDedupeDebugLog}");
         builder.AppendLine($"OverlayBounds: {FormatBounds(settings)}");
         builder.AppendLine($"CaptureRegion: {FormatRegion(settings.CaptureRegion)}");
+        if (runtime is not null)
+        {
+            builder.AppendLine();
+            builder.AppendLine("== Runtime State ==");
+            builder.AppendLine($"IsRunning: {runtime.IsRunning}");
+            builder.AppendLine($"RunGeneration: {runtime.RunGeneration}");
+            builder.AppendLine($"OverlayRecordCount: {runtime.OverlayRecordCount}");
+            builder.AppendLine($"TranslationQueueQueued: {runtime.TranslationQueue.QueuedCount}");
+            builder.AppendLine($"TranslationQueueActive: {runtime.TranslationQueue.ActiveCount}");
+            builder.AppendLine($"LastApiLatencyMs: {runtime.TranslationQueue.LastApiLatencyMs}");
+            builder.AppendLine($"LastTranslationFailure: {Limit(runtime.TranslationQueue.LastFailure, 180)}");
+            builder.AppendLine($"TranslationQueueUpdatedAt: {FormatTimestamp(runtime.TranslationQueue.LastUpdatedAt)}");
+        }
+
         builder.AppendLine();
         builder.AppendLine("== Current UI Log ==");
         foreach (string line in uiLogLines.TakeLast(80))
@@ -139,6 +159,15 @@ public sealed class DiagnosticsService
         region is null
             ? "not selected"
             : $"{region.Left:0.##},{region.Top:0.##} {region.Width:0.##}x{region.Height:0.##}";
+
+    private static string FormatTimestamp(DateTime? timestamp) =>
+        timestamp is null ? "never" : timestamp.Value.ToString("yyyy-MM-dd HH:mm:ss.fff");
+
+    private static string Limit(string value, int maxLength)
+    {
+        string trimmed = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return trimmed.Length <= maxLength ? trimmed : trimmed[..maxLength] + "...";
+    }
 
     private static void AppendFileTail(StringBuilder builder, string path, string title, int maxLines)
     {
