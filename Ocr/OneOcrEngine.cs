@@ -11,9 +11,9 @@ namespace OwTranslateLite.Ocr;
 
 public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
 {
-    private long _context;
-    private long _pipeline;
-    private long _processOptions;
+    private OcrNativeHandle? _context;
+    private OcrNativeHandle? _pipeline;
+    private OcrNativeHandle? _processOptions;
     private bool _ready;
     private bool _nativePathConfigured;
 
@@ -52,7 +52,7 @@ public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
                 data_ptr = data.Scan0
             };
 
-            long res = OneOcrNative.RunOcrPipeline(_pipeline, ref img, _processOptions, out instance);
+            long res = OneOcrNative.RunOcrPipeline(_pipeline!.Value, ref img, _processOptions!.Value, out instance);
             if (res != 0)
             {
                 return Array.Empty<OcrTextLine>();
@@ -118,27 +118,30 @@ public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
         ConfigureNativePath();
         try
         {
-            if (OneOcrNative.CreateOcrInitOptions(out _context) != 0)
+            if (OneOcrNative.CreateOcrInitOptions(out long context) != 0)
             {
                 return Task.CompletedTask;
             }
 
-            _ = OneOcrNative.OcrInitOptionsSetUseModelDelayLoad(_context, 1);
+            _context = new OcrNativeHandle(context, OcrNativeHandleKind.InitOptions);
+            _ = OneOcrNative.OcrInitOptionsSetUseModelDelayLoad(_context.Value, 1);
             string modelPath = Path.Combine(AppContext.BaseDirectory, "OneOcr", "oneocr.onemodel");
             string key = "kj)TGtrK>f]b[Piow.gU+nC@s\"\"\"\"\"\"4";
-            if (OneOcrNative.CreateOcrPipeline(modelPath, key, _context, out _pipeline) != 0)
+            if (OneOcrNative.CreateOcrPipeline(modelPath, key, _context.Value, out long pipeline) != 0)
             {
                 Dispose();
                 return Task.CompletedTask;
             }
 
-            if (OneOcrNative.CreateOcrProcessOptions(out _processOptions) != 0)
+            _pipeline = new OcrNativeHandle(pipeline, OcrNativeHandleKind.Pipeline);
+            if (OneOcrNative.CreateOcrProcessOptions(out long processOptions) != 0)
             {
                 Dispose();
                 return Task.CompletedTask;
             }
 
-            _ = OneOcrNative.OcrProcessOptionsSetMaxRecognitionLineCount(_processOptions, 80);
+            _processOptions = new OcrNativeHandle(processOptions, OcrNativeHandleKind.ProcessOptions);
+            _ = OneOcrNative.OcrProcessOptionsSetMaxRecognitionLineCount(_processOptions.Value, 80);
             _ready = true;
         }
         catch
@@ -152,24 +155,12 @@ public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
 
     public void Dispose()
     {
-        if (_processOptions != 0)
-        {
-            _ = OneOcrNative.ReleaseOcrProcessOptions(_processOptions);
-            _processOptions = 0;
-        }
-
-        if (_pipeline != 0)
-        {
-            _ = OneOcrNative.ReleaseOcrPipeline(_pipeline);
-            _pipeline = 0;
-        }
-
-        if (_context != 0)
-        {
-            _ = OneOcrNative.ReleaseOcrInitOptions(_context);
-            _context = 0;
-        }
-
+        _processOptions?.Dispose();
+        _processOptions = null;
+        _pipeline?.Dispose();
+        _pipeline = null;
+        _context?.Dispose();
+        _context = null;
         _ready = false;
     }
 
@@ -229,6 +220,42 @@ public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
         public float y3;
         public float x4;
         public float y4;
+    }
+
+    private sealed class OcrNativeHandle : SafeHandle
+    {
+        private readonly OcrNativeHandleKind _kind;
+
+        public OcrNativeHandle(long value, OcrNativeHandleKind kind)
+            : base(IntPtr.Zero, ownsHandle: true)
+        {
+            _kind = kind;
+            SetHandle(new IntPtr(value));
+        }
+
+        public long Value => handle.ToInt64();
+
+        public override bool IsInvalid => handle == IntPtr.Zero;
+
+        protected override bool ReleaseHandle()
+        {
+            long value = handle.ToInt64();
+            long result = _kind switch
+            {
+                OcrNativeHandleKind.ProcessOptions => OneOcrNative.ReleaseOcrProcessOptions(value),
+                OcrNativeHandleKind.Pipeline => OneOcrNative.ReleaseOcrPipeline(value),
+                OcrNativeHandleKind.InitOptions => OneOcrNative.ReleaseOcrInitOptions(value),
+                _ => 0
+            };
+            return result == 0;
+        }
+    }
+
+    private enum OcrNativeHandleKind
+    {
+        InitOptions,
+        Pipeline,
+        ProcessOptions
     }
 
     private static partial class OneOcrNative
