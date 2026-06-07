@@ -7,6 +7,7 @@ using OwTranslateLite.Core;
 using OwTranslateLite.Ocr;
 using OwTranslateLite.Overlay;
 using OwTranslateLite.Translation;
+using WpfTextBoxBase = System.Windows.Controls.Primitives.TextBoxBase;
 using WpfComboBox = System.Windows.Controls.ComboBox;
 
 namespace OwTranslateLite;
@@ -44,6 +45,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        ModelCombo.AddHandler(WpfTextBoxBase.TextChangedEvent, new TextChangedEventHandler(TranslationSettings_Changed));
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
     }
@@ -174,11 +176,41 @@ public partial class MainWindow : Window
         }
 
         UpdateProviderPreset();
+        SaveSettingsFromUi();
         if (_isRunning)
         {
-            SaveSettingsFromUi();
             RestartLoop(resetChatCycle: false, resetOcrEngine: false, "翻译设置已更新，已继续运行。");
         }
+    }
+
+    private void TranslationSettings_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || _isLoadingSettings)
+        {
+            return;
+        }
+
+        SaveSettingsFromUi();
+    }
+
+    private void OverlaySettings_Changed(object sender, RoutedEventArgs e)
+    {
+        AutoSaveSettings();
+    }
+
+    private void OverlaySettings_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+    {
+        AutoSaveSettings();
+    }
+
+    private void AutoSaveSettings()
+    {
+        if (!IsLoaded || _isLoadingSettings)
+        {
+            return;
+        }
+
+        SaveSettingsFromUi();
     }
 
     private void OcrSettings_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -283,12 +315,6 @@ public partial class MainWindow : Window
         StopLoop(hideOverlay: true, clearOverlay: false);
         StatusText.Text = "已暂停";
         AddLog("已暂停。");
-    }
-
-    private void SaveSettings_Click(object sender, RoutedEventArgs e)
-    {
-        SaveSettingsFromUi();
-        AddLog("设置已保存。");
     }
 
     private async void FetchModels_Click(object sender, RoutedEventArgs e)

@@ -109,9 +109,9 @@
                 </ComboBox>
 
                 <TextBlock Text="API URL" Foreground="#AFC6B6"/>
-                <TextBox x:Name="ApiUrlBox" Margin="0,4,0,10"/>
+                <TextBox x:Name="ApiUrlBox" Margin="0,4,0,10" TextChanged="TranslationSettings_Changed"/>
                 <TextBlock Text="API Key" Foreground="#AFC6B6"/>
-                <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,10"/>
+                <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,10" PasswordChanged="TranslationSettings_Changed"/>
                 <TextBlock Text="Model" Foreground="#AFC6B6"/>
                 <Grid Margin="0,4,0,14">
                     <Grid.ColumnDefinitions>
@@ -119,7 +119,7 @@
                         <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <ComboBox x:Name="ModelCombo" IsEditable="True"/>
+                    <ComboBox x:Name="ModelCombo" IsEditable="True" SelectionChanged="TranslationSettings_Changed"/>
                     <Button x:Name="FetchModelsButton" Grid.Column="2" Content="获取模型" Click="FetchModels_Click"/>
                 </Grid>
 
@@ -132,14 +132,14 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel>
                         <TextBlock Text="字号" Foreground="#AFC6B6"/>
-                        <Slider x:Name="FontSizeSlider" Minimum="14" Maximum="32" Value="20"/>
+                        <Slider x:Name="FontSizeSlider" Minimum="14" Maximum="32" Value="20" ValueChanged="OverlaySettings_Changed"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2">
                         <TextBlock Text="透明度" Foreground="#AFC6B6"/>
-                        <Slider x:Name="OpacitySlider" Minimum="0" Maximum="1" Value="0.86"/>
+                        <Slider x:Name="OpacitySlider" Minimum="0" Maximum="1" Value="0.86" ValueChanged="OverlaySettings_Changed"/>
                     </StackPanel>
                 </Grid>
-                <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6"/>
+                <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6" Checked="OverlaySettings_Changed" Unchecked="OverlaySettings_Changed"/>
                 <TextBlock Text="关闭鼠标穿透后可拖动黑框；内容过多时会在框内向上滚动。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,16"/>
 
                 <WrapPanel>
@@ -149,7 +149,6 @@
                 <WrapPanel Margin="0,10,0,0">
                     <Button x:Name="StartButton" Content="开始" Click="Start_Click"/>
                     <Button x:Name="StopButton" Content="暂停" Background="#EBCB6B" BorderBrush="#EBCB6B" Click="Stop_Click"/>
-                    <Button Content="保存设置" Background="#9BB7F0" BorderBrush="#9BB7F0" Click="SaveSettings_Click"/>
                 </WrapPanel>
 
                 <Border Background="#161A1E" BorderBrush="#2F3940" BorderThickness="1" Padding="12" Margin="0,16,0,0">
