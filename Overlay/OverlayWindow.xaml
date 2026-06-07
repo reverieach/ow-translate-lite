@@ -61,29 +61,20 @@
 
             <Border x:Name="ReplyInputPanel"
                     Grid.Row="2"
-                    Visibility="Collapsed"
+                    Visibility="Visible"
                     Margin="0,10,0,0"
-                    Padding="8,6"
-                    Background="#C014171A"
-                    BorderBrush="#6678D995"
-                    BorderThickness="1">
+                    Padding="0"
+                    Background="Transparent"
+                    BorderThickness="0">
                 <Grid>
                     <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="104"/>
+                        <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="8"/>
-                        <ColumnDefinition Width="112"/>
-                        <ColumnDefinition Width="8"/>
-                        <ColumnDefinition Width="96"/>
                     </Grid.ColumnDefinitions>
-                    <TextBox x:Name="ReplyInputBox"
-                             BorderThickness="0"
-                             Background="#AA07090A"
-                             Foreground="#F4F7F5"
-                             CaretBrush="#78D995"
-                             Padding="8,4"
-                             VerticalContentAlignment="Center"/>
                     <ComboBox x:Name="ReplyTargetCombo"
-                              Grid.Column="2"
+                              Grid.Column="0"
+                              BorderThickness="0"
                               Background="#1B2024"
                               Foreground="#101214"
                               VerticalContentAlignment="Center">
@@ -92,12 +83,14 @@
                         <ComboBoxItem Content="日语" Tag="ja"/>
                         <ComboBoxItem Content="韩语" Tag="ko"/>
                     </ComboBox>
-                    <TextBlock x:Name="ReplyStatusText"
-                               Grid.Column="4"
-                               Text="Ctrl+Shift+Enter"
-                               Foreground="#B8F3C7"
-                               TextTrimming="CharacterEllipsis"
-                               VerticalAlignment="Center"/>
+                    <TextBox x:Name="ReplyInputBox"
+                             Grid.Column="2"
+                             BorderThickness="0"
+                             Background="#AA07090A"
+                             Foreground="#F4F7F5"
+                             CaretBrush="#78D995"
+                             Padding="8,4"
+                             VerticalContentAlignment="Center"/>
                 </Grid>
             </Border>
         </Grid>

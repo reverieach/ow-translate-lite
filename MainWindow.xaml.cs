@@ -28,8 +28,10 @@ public partial class MainWindow : Window
     private const int ReplyHotkeyId = 0x4F57;
     private const int WmHotkey = 0x0312;
     private const uint ModControl = 0x0002;
+    private const uint ModAlt = 0x0001;
     private const uint ModShift = 0x0004;
     private const uint VkReturn = 0x0D;
+    private const uint VkSpace = 0x20;
 
     private readonly ConfigStore _config = new();
     private readonly RecentChatLanguageTracker _recentChatLanguages = new();
@@ -79,7 +81,7 @@ public partial class MainWindow : Window
         ApplyRunningState();
         ApplyFrameAdjustmentState();
         AddLog("就绪。正式测试建议使用 DeepSeek API；Local Rules 仅用于离线规则冒烟测试。");
-        RegisterReplyHotkey();
+        ApplyReplyHotkeyRegistration();
         ShowQuickStartIfNeeded();
     }
 
@@ -112,6 +114,8 @@ public partial class MainWindow : Window
             FontSizeSlider.Value = settings.OverlayFontSize;
             OpacitySlider.Value = settings.OverlayOpacity;
             ClickThroughCheck.IsChecked = settings.OverlayClickThrough;
+            ReplyHotkeyCheck.IsChecked = settings.EnableReplyHotkey;
+            SelectCombo(ReplyHotkeyCombo, settings.ReplyHotkey);
             DedupeDebugCheck.IsChecked = settings.EnableDedupeDebugLog;
             FirstRunPanel.Visibility = settings.FirstRun ? Visibility.Visible : Visibility.Collapsed;
             UpdateProviderPreset();
@@ -135,6 +139,8 @@ public partial class MainWindow : Window
         settings.OverlayFontSize = FontSizeSlider.Value;
         settings.OverlayOpacity = OpacitySlider.Value;
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
+        settings.EnableReplyHotkey = ReplyHotkeyCheck.IsChecked == true;
+        settings.ReplyHotkey = GetComboText(ReplyHotkeyCombo);
         settings.EnableDedupeDebugLog = DedupeDebugCheck.IsChecked == true;
         SaveOverlayBounds(settings);
         _config.Save();
@@ -231,6 +237,17 @@ public partial class MainWindow : Window
     private void BetaDebugSettings_Changed(object sender, RoutedEventArgs e)
     {
         AutoSaveSettings();
+    }
+
+    private void ReplyHotkeySettings_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || _isLoadingSettings)
+        {
+            return;
+        }
+
+        SaveSettingsFromUi();
+        ApplyReplyHotkeyRegistration();
     }
 
     private void OverlaySettings_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
@@ -878,6 +895,7 @@ public partial class MainWindow : Window
         _overlay.LocationChanged += Overlay_BoundsChanged;
         _overlay.SizeChanged += Overlay_BoundsChanged;
         _overlay.ReplySubmitted += Overlay_ReplySubmitted;
+        _overlay.ReplyEditingStarted += Overlay_ReplyEditingStarted;
         _overlay.ReplyTargetLanguageChanged += Overlay_ReplyTargetLanguageChanged;
         _overlay.ReplyModeExited += Overlay_ReplyModeExited;
         ApplyOverlaySettings();
@@ -962,6 +980,8 @@ public partial class MainWindow : Window
         builder.AppendLine("ApiKey: [redacted]");
         builder.AppendLine($"Model: {settings.Model}");
         builder.AppendLine($"ReplyTargetLanguage: {settings.ReplyTargetLanguage}");
+        builder.AppendLine($"EnableReplyHotkey: {settings.EnableReplyHotkey}");
+        builder.AppendLine($"ReplyHotkey: {settings.ReplyHotkey}");
         builder.AppendLine($"CaptureIntervalMs: {settings.CaptureIntervalMs}");
         builder.AppendLine($"RequestTimeoutSeconds: {settings.RequestTimeoutSeconds}");
         builder.AppendLine($"OverlayOpacity: {settings.OverlayOpacity:0.###}");
@@ -1093,6 +1113,7 @@ public partial class MainWindow : Window
             System.Windows.Clipboard.SetText(translated);
             _overlay?.ClearReplyInput();
             _overlay?.SetReplyStatus($"已复制：{LimitReplyStatus(translated)}");
+            _isReplyModeActive = false;
             AddLog($"回话已复制：{translated}");
         }
         catch (OperationCanceledException)
@@ -1119,6 +1140,15 @@ public partial class MainWindow : Window
         RefreshReplyTargetDisplay();
     }
 
+    private void Overlay_ReplyEditingStarted(object? sender, EventArgs e)
+    {
+        _isReplyModeActive = true;
+        _historyPeekOverlayUntil = null;
+        _overlayVisibleForHistoryPeek = false;
+        _overlayHiddenByIdle = false;
+        RefreshReplyTargetDisplay();
+    }
+
     private void Overlay_ReplyModeExited(object? sender, EventArgs e)
     {
         ExitReplyMode();
@@ -1133,7 +1163,7 @@ public partial class MainWindow : Window
         _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
         _overlay?.EnterReplyMode(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
-        AddLog("已进入回话模式，输入中文后按 Enter 翻译并复制。");
+        AddLog("已进入回话模式。");
     }
 
     private void ExitReplyMode()
@@ -1206,6 +1236,17 @@ public partial class MainWindow : Window
 
     private void RegisterReplyHotkey()
     {
+        if (!_config.Settings.EnableReplyHotkey)
+        {
+            return;
+        }
+
+        if (!TryParseReplyHotkey(_config.Settings.ReplyHotkey, out uint modifiers, out uint key))
+        {
+            AddLog($"回话热键配置无效：{_config.Settings.ReplyHotkey}");
+            return;
+        }
+
         nint handle = new WindowInteropHelper(this).Handle;
         if (handle == 0)
         {
@@ -1215,9 +1256,9 @@ public partial class MainWindow : Window
 
         _hotkeySource = HwndSource.FromHwnd(handle);
         _hotkeySource?.AddHook(WndProc);
-        _replyHotkeyRegistered = RegisterHotKey(handle, ReplyHotkeyId, ModControl | ModShift, VkReturn);
+        _replyHotkeyRegistered = RegisterHotKey(handle, ReplyHotkeyId, modifiers, key);
         AddLog(_replyHotkeyRegistered
-            ? "回话热键已启用：Ctrl+Shift+Enter。"
+            ? $"回话热键已启用：{_config.Settings.ReplyHotkey}。"
             : "回话热键注册失败，可能已被其他程序占用。");
     }
 
@@ -1232,6 +1273,42 @@ public partial class MainWindow : Window
         _replyHotkeyRegistered = false;
         _hotkeySource?.RemoveHook(WndProc);
         _hotkeySource = null;
+    }
+
+    private void ApplyReplyHotkeyRegistration()
+    {
+        UnregisterReplyHotkey();
+        RegisterReplyHotkey();
+    }
+
+    private static bool TryParseReplyHotkey(string value, out uint modifiers, out uint key)
+    {
+        modifiers = 0;
+        key = 0;
+        foreach (string part in value.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            switch (part.ToLowerInvariant())
+            {
+                case "ctrl":
+                case "control":
+                    modifiers |= ModControl;
+                    break;
+                case "shift":
+                    modifiers |= ModShift;
+                    break;
+                case "alt":
+                    modifiers |= ModAlt;
+                    break;
+                case "enter":
+                    key = VkReturn;
+                    break;
+                case "space":
+                    key = VkSpace;
+                    break;
+            }
+        }
+
+        return modifiers != 0 && key != 0;
     }
 
     private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)

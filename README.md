@@ -45,10 +45,11 @@ Publish beta packages only when preparing a tester build:
 
 ## Reply Helper
 
-- Press `Ctrl+Shift+Enter` to open the overlay reply input.
+- Click the reply input at the bottom of the overlay.
 - Type Chinese and press Enter; the app translates it to the selected target language and copies the result.
 - The target language dropdown supports Auto, English, Japanese, and Korean. Auto uses recent OCR chat language and falls back to English.
-- Press Esc in the reply input to leave reply mode and restore click-through behavior.
+- After Enter, the input releases focus and restores click-through behavior.
+- Optional reply hotkeys can be enabled in the main window; they are off by default.
 
 ## Git
 

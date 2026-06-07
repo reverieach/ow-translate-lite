@@ -13,6 +13,8 @@ public sealed class AppSettings
     public string ApiKey { get; set; } = "";
     public string Model { get; set; } = "deepseek-v4-flash";
     public string ReplyTargetLanguage { get; set; } = "auto";
+    public bool EnableReplyHotkey { get; set; }
+    public string ReplyHotkey { get; set; } = "Ctrl+Shift+Enter";
     public int CaptureIntervalMs { get; set; } = 900;
     public int RequestTimeoutSeconds { get; set; } = 20;
     public double OverlayOpacity { get; set; } = 0.153;

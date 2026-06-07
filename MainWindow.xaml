@@ -140,7 +140,27 @@
                     </StackPanel>
                 </Grid>
                 <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6" Checked="OverlaySettings_Changed" Unchecked="OverlaySettings_Changed"/>
-                <TextBlock Text="默认开启鼠标穿透，不挡游戏操作；需要移动或缩放时点击“调整翻译框”。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <TextBlock Text="默认开启鼠标穿透，不挡游戏操作；翻译框底部输入条仍可点击回话。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <CheckBox x:Name="ReplyHotkeyCheck"
+                              Content="启用回话热键"
+                              VerticalAlignment="Center"
+                              Checked="ReplyHotkeySettings_Changed"
+                              Unchecked="ReplyHotkeySettings_Changed"/>
+                    <ComboBox x:Name="ReplyHotkeyCombo"
+                              Grid.Column="2"
+                              SelectionChanged="ReplyHotkeySettings_Changed">
+                        <ComboBoxItem Content="Ctrl+Shift+Enter"/>
+                        <ComboBoxItem Content="Ctrl+Shift+Space"/>
+                        <ComboBoxItem Content="Ctrl+Alt+Enter"/>
+                        <ComboBoxItem Content="Alt+Shift+Enter"/>
+                    </ComboBox>
+                </Grid>
                 <TextBlock x:Name="FrameAdjustHint"
                            Text="正在调整翻译框：拖动顶部横条移动，拖动右下角缩放。调整完成后请点击“完成调整”，程序会恢复鼠标穿透。"
                            Foreground="#EBCB6B"

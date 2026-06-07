@@ -18,6 +18,9 @@ public partial class OverlayWindow : Window
     private const double MinOverlayHeight = 100;
     private const double MinVisiblePixels = 80;
     private const int GwlExstyle = -20;
+    private const int WmNchittest = 0x0084;
+    private const int Httransparent = -1;
+    private const int Htclient = 1;
     private const int WsExTransparent = 0x00000020;
     private const int WsExLayered = 0x00080000;
 
@@ -36,16 +39,19 @@ public partial class OverlayWindow : Window
     {
         InitializeComponent();
         Loaded += (_, _) => ApplyClickThrough(_isClickThrough);
+        SourceInitialized += OverlayWindow_SourceInitialized;
         DragHandle.MouseLeftButtonDown += DragHandle_MouseLeftButtonDown;
         DragHandle.MouseMove += DragHandle_MouseMove;
         DragHandle.MouseLeftButtonUp += DragHandle_MouseLeftButtonUp;
         ResizeGrip.DragDelta += ResizeGrip_DragDelta;
         ReplyInputBox.PreviewKeyDown += ReplyInputBox_PreviewKeyDown;
+        ReplyInputBox.GotKeyboardFocus += (_, _) => BeginReplyEditing();
         ReplyTargetCombo.SelectionChanged += ReplyTargetCombo_SelectionChanged;
     }
 
     public event EventHandler<ReplySubmittedEventArgs>? ReplySubmitted;
     public event EventHandler<string>? ReplyTargetLanguageChanged;
+    public event EventHandler? ReplyEditingStarted;
     public event EventHandler? ReplyModeExited;
 
     public void ApplySettings(AppSettings settings)
@@ -54,7 +60,6 @@ public partial class OverlayWindow : Window
         _isClickThrough = settings.OverlayClickThrough;
         RecordList.FontSize = settings.OverlayFontSize;
         ReplyInputBox.FontSize = settings.OverlayFontSize;
-        ReplyStatusText.FontSize = Math.Max(11, settings.OverlayFontSize - 2);
         ReplyTargetCombo.FontSize = Math.Max(11, settings.OverlayFontSize - 2);
         ApplyBackgroundOpacity(settings.OverlayOpacity);
         ApplyClickThrough(_isReplyMode ? false : settings.OverlayClickThrough);
@@ -66,8 +71,6 @@ public partial class OverlayWindow : Window
     {
         _isReplyMode = true;
         SetReplyTargetLanguage(replyTargetLanguage, effectiveLanguage);
-        ReplyInputPanel.Visibility = Visibility.Visible;
-        SetReplyStatus("输入中文回车复制");
         ApplyClickThrough(false);
         Show();
         Activate();
@@ -82,7 +85,7 @@ public partial class OverlayWindow : Window
     {
         _isReplyMode = false;
         ReplyInputBox.Clear();
-        ReplyInputPanel.Visibility = Visibility.Collapsed;
+        Keyboard.ClearFocus();
         ApplyClickThrough(_settings?.OverlayClickThrough == true);
     }
 
@@ -105,14 +108,15 @@ public partial class OverlayWindow : Window
 
     public void SetReplyStatus(string status)
     {
-        ReplyStatusText.Text = status;
+        ToolTip = status;
     }
 
     public void ClearReplyInput()
     {
         ReplyInputBox.Clear();
-        ReplyInputBox.Focus();
-        Keyboard.Focus(ReplyInputBox);
+        Keyboard.ClearFocus();
+        _isReplyMode = false;
+        ApplyClickThrough(_settings?.OverlayClickThrough == true);
     }
 
     public void UpdateRecords(IReadOnlyList<TranslationRecord> records)
@@ -226,8 +230,9 @@ public partial class OverlayWindow : Window
     {
         FloatingPanel.Background = CreateBackgroundBrush(opacity);
         FloatingPanel.BorderBrush = CreateBorderBrush(opacity);
-        ReplyInputPanel.Background = CreateInputBackgroundBrush(opacity);
+        ReplyInputPanel.Background = System.Windows.Media.Brushes.Transparent;
         ReplyInputBox.Background = CreateInputBoxBrush(opacity);
+        ReplyTargetCombo.Background = CreateInputBoxBrush(opacity);
     }
 
     private static SolidColorBrush CreateBackgroundBrush(double opacity)
@@ -242,25 +247,14 @@ public partial class OverlayWindow : Window
         return new SolidColorBrush(MediaColor.FromArgb(alpha, 120, 217, 149));
     }
 
-    private static SolidColorBrush CreateInputBackgroundBrush(double opacity)
-    {
-        byte alpha = (byte)(Math.Clamp(opacity + 0.28, 0.35, 0.92) * 255);
-        return new SolidColorBrush(MediaColor.FromArgb(alpha, 10, 13, 15));
-    }
-
     private static SolidColorBrush CreateInputBoxBrush(double opacity)
     {
-        byte alpha = (byte)(Math.Clamp(opacity + 0.2, 0.28, 0.88) * 255);
+        byte alpha = (byte)(Math.Clamp(opacity + 0.08, 0.16, 0.72) * 255);
         return new SolidColorBrush(MediaColor.FromArgb(alpha, 7, 9, 10));
     }
 
     private void ApplyClickThrough(bool enabled)
     {
-        if (_isReplyMode)
-        {
-            enabled = false;
-        }
-
         DragHandleRow.Height = enabled ? new GridLength(0) : new GridLength(20);
         DragHandle.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
         ResizeGrip.Visibility = enabled ? Visibility.Collapsed : Visibility.Visible;
@@ -281,7 +275,8 @@ public partial class OverlayWindow : Window
         int style = GetWindowLong(handle, GwlExstyle);
         if (enabled)
         {
-            style |= WsExTransparent | WsExLayered;
+            style &= ~WsExTransparent;
+            style |= WsExLayered;
         }
         else
         {
@@ -290,6 +285,33 @@ public partial class OverlayWindow : Window
         }
 
         SetWindowLong(handle, GwlExstyle, style);
+    }
+
+    private void OverlayWindow_SourceInitialized(object? sender, EventArgs e)
+    {
+        HwndSource? source = HwndSource.FromVisual(this) as HwndSource;
+        source?.AddHook(WndProc);
+    }
+
+    private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+    {
+        if (msg != WmNchittest || !_isClickThrough)
+        {
+            return 0;
+        }
+
+        WpfPoint screenPoint = new(GetSignedLoWord(lParam), GetSignedHiWord(lParam));
+        WpfPoint localPoint = PointFromScreen(screenPoint);
+        bool overReplyInput = IsPointInsideElement(ReplyInputPanel, localPoint);
+        handled = true;
+        return overReplyInput ? Htclient : Httransparent;
+    }
+
+    private void BeginReplyEditing()
+    {
+        _isReplyMode = true;
+        ApplyClickThrough(false);
+        ReplyEditingStarted?.Invoke(this, EventArgs.Empty);
     }
 
     private void ReplyInputBox_PreviewKeyDown(object sender, WpfKeyEventArgs e)
@@ -400,6 +422,24 @@ public partial class OverlayWindow : Window
             ? point
             : source.CompositionTarget.TransformFromDevice.Transform(point);
     }
+
+    private bool IsPointInsideElement(FrameworkElement element, WpfPoint windowPoint)
+    {
+        if (!element.IsVisible)
+        {
+            return false;
+        }
+
+        GeneralTransform transform = element.TransformToAncestor(this);
+        Rect bounds = transform.TransformBounds(new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+        return bounds.Contains(windowPoint);
+    }
+
+    private static short GetSignedLoWord(nint value) =>
+        unchecked((short)((long)value & 0xffff));
+
+    private static short GetSignedHiWord(nint value) =>
+        unchecked((short)(((long)value >> 16) & 0xffff));
 
     [DllImport("user32.dll")]
     private static extern int GetWindowLong(nint hWnd, int nIndex);
