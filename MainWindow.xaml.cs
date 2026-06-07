@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.IO;
-using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -29,6 +27,7 @@ public partial class MainWindow : Window
     private readonly ConfigStore _config = new();
     private readonly RecentChatLanguageTracker _recentChatLanguages = new();
     private readonly HotKeyService _replyHotKey = new(ReplyHotkeyId);
+    private readonly DiagnosticsService _diagnostics = new();
     private OwGlossaryService _glossary = null!;
     private TranslationCoordinator _coordinator = null!;
     private OverlayWindow? _overlay;
@@ -460,56 +459,28 @@ public partial class MainWindow : Window
 
     private void OpenDataDirectory_Click(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(ConfigStore.AppDirectory);
-        OpenShellPath(ConfigStore.AppDirectory);
+        _diagnostics.OpenAppDirectory();
         AddLog($"已打开数据目录：{ConfigStore.AppDirectory}");
     }
 
     private void OpenRuntimeLog_Click(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(ConfigStore.AppDirectory);
-        if (!File.Exists(ConfigStore.RuntimeLogPath))
-        {
-            File.WriteAllText(
-                ConfigStore.RuntimeLogPath,
-                "OW Translator Lite runtime log\n",
-                new UTF8Encoding(false));
-        }
-
-        OpenShellPath(ConfigStore.RuntimeLogPath);
+        _diagnostics.OpenRuntimeLog();
         AddLog($"已打开日志：{ConfigStore.RuntimeLogPath}");
     }
 
     private void OpenDedupeLog_Click(object sender, RoutedEventArgs e)
     {
-        Directory.CreateDirectory(ConfigStore.AppDirectory);
-        if (!File.Exists(ConfigStore.DedupeLogPath))
-        {
-            File.WriteAllText(
-                ConfigStore.DedupeLogPath,
-                "OW Translator Lite dedupe debug log\n",
-                new UTF8Encoding(false));
-        }
-
-        OpenShellPath(ConfigStore.DedupeLogPath);
+        _diagnostics.OpenDedupeLog();
         AddLog($"已打开去重日志：{ConfigStore.DedupeLogPath}");
     }
 
     private void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
     {
         SaveSettingsFromUi();
-        Directory.CreateDirectory(ConfigStore.AppDirectory);
-
-        string diagnosticsPath = Path.Combine(
-            ConfigStore.AppDirectory,
-            $"diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
-
-        File.WriteAllText(
-            diagnosticsPath,
-            BuildDiagnosticsReport(),
-            new UTF8Encoding(false));
-
-        OpenShellPath(ConfigStore.AppDirectory);
+        string diagnosticsPath = _diagnostics.ExportDiagnostics(
+            _config.Settings,
+            LogList.Items.Cast<object>().Select(static item => item.ToString() ?? ""));
         AddLog($"已导出诊断：{diagnosticsPath}");
     }
 
@@ -992,7 +963,7 @@ public partial class MainWindow : Window
     private void AddLog(string message)
     {
         string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
-        AppendRuntimeLog(line);
+        _diagnostics.AppendRuntimeLog(line);
         LogList.Items.Add(line);
         while (LogList.Items.Count > MaxLogRecords)
         {
@@ -1002,113 +973,6 @@ public partial class MainWindow : Window
         LogList.ScrollIntoView(line);
     }
 
-    private string BuildDiagnosticsReport()
-    {
-        AppSettings settings = _config.Settings;
-        StringBuilder builder = new();
-        builder.AppendLine("OW Translator Lite Beta Diagnostics");
-        builder.AppendLine($"GeneratedAt: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        builder.AppendLine($"Version: {typeof(MainWindow).Assembly.GetName().Version}");
-        builder.AppendLine($"OS: {Environment.OSVersion}");
-        builder.AppendLine($".NET: {Environment.Version}");
-        builder.AppendLine();
-        builder.AppendLine("== Paths ==");
-        builder.AppendLine($"AppDirectory: {ConfigStore.AppDirectory}");
-        builder.AppendLine($"SettingsPath: {ConfigStore.SettingsPath}");
-        builder.AppendLine($"RuntimeLogPath: {ConfigStore.RuntimeLogPath}");
-        builder.AppendLine($"CrashLogPath: {ConfigStore.CrashLogPath}");
-        builder.AppendLine($"DedupeLogPath: {ConfigStore.DedupeLogPath}");
-        builder.AppendLine();
-        builder.AppendLine("== Settings ==");
-        builder.AppendLine($"OcrEngine: {settings.OcrEngine}");
-        builder.AppendLine($"OcrLanguage: {settings.OcrLanguage}");
-        builder.AppendLine($"TranslationProvider: {settings.TranslationProvider}");
-        builder.AppendLine($"ApiUrl: {settings.ApiUrl}");
-        builder.AppendLine($"ApiKeyConfigured: {!string.IsNullOrWhiteSpace(settings.ApiKey)}");
-        builder.AppendLine("ApiKey: [redacted]");
-        builder.AppendLine($"Model: {settings.Model}");
-        builder.AppendLine($"ReplyTargetLanguage: {settings.ReplyTargetLanguage}");
-        builder.AppendLine($"EnableReplyHotkey: {settings.EnableReplyHotkey}");
-        builder.AppendLine($"ReplyHotkey: {settings.ReplyHotkey}");
-        builder.AppendLine($"CaptureIntervalMs: {settings.CaptureIntervalMs}");
-        builder.AppendLine($"RequestTimeoutSeconds: {settings.RequestTimeoutSeconds}");
-        builder.AppendLine($"OverlayOpacity: {settings.OverlayOpacity:0.###}");
-        builder.AppendLine($"OverlayFontSize: {settings.OverlayFontSize:0.###}");
-        builder.AppendLine($"OverlayClickThrough: {settings.OverlayClickThrough}");
-        builder.AppendLine($"EnableDedupeDebugLog: {settings.EnableDedupeDebugLog}");
-        builder.AppendLine($"OverlayBounds: {FormatBounds(settings)}");
-        builder.AppendLine($"CaptureRegion: {FormatRegion(settings.CaptureRegion)}");
-        builder.AppendLine();
-        builder.AppendLine("== Current UI Log ==");
-        foreach (object item in LogList.Items.Cast<object>().TakeLast(80))
-        {
-            builder.AppendLine(item.ToString());
-        }
-
-        AppendFileTail(builder, ConfigStore.RuntimeLogPath, "Runtime Log Tail", 120);
-        AppendFileTail(builder, ConfigStore.CrashLogPath, "Crash Log Tail", 120);
-        AppendFileTail(builder, ConfigStore.DedupeLogPath, "Dedupe Debug Log Tail", 200);
-
-        return builder.ToString();
-    }
-
-    private static string FormatBounds(AppSettings settings)
-    {
-        if (settings.OverlayLeft is not double left ||
-            settings.OverlayTop is not double top ||
-            settings.OverlayWidth is not double width ||
-            settings.OverlayHeight is not double height)
-        {
-            return "not saved";
-        }
-
-        return $"{left:0.##},{top:0.##} {width:0.##}x{height:0.##}";
-    }
-
-    private static string FormatRegion(CaptureRegion? region) =>
-        region is null
-            ? "not selected"
-            : $"{region.Left:0.##},{region.Top:0.##} {region.Width:0.##}x{region.Height:0.##}";
-
-    private static void AppendFileTail(StringBuilder builder, string path, string title, int maxLines)
-    {
-        builder.AppendLine();
-        builder.AppendLine($"== {title} ==");
-        if (!File.Exists(path))
-        {
-            builder.AppendLine("not found");
-            return;
-        }
-
-        try
-        {
-            foreach (string line in File.ReadLines(path, Encoding.UTF8).TakeLast(maxLines))
-            {
-                builder.AppendLine(line);
-            }
-        }
-        catch (Exception ex)
-        {
-            builder.AppendLine($"unavailable: {ex.Message}");
-        }
-    }
-
-    private static void AppendRuntimeLog(string line)
-    {
-        try
-        {
-            Directory.CreateDirectory(ConfigStore.AppDirectory);
-            File.AppendAllText(
-                ConfigStore.RuntimeLogPath,
-                line + Environment.NewLine,
-                new UTF8Encoding(false));
-        }
-        catch
-        {
-            // Runtime logging is diagnostic-only and must not interrupt translation.
-        }
-    }
-
     private void AppendDedupeLog(string message)
     {
         if (!_config.Settings.EnableDedupeDebugLog)
@@ -1116,18 +980,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        try
-        {
-            Directory.CreateDirectory(ConfigStore.AppDirectory);
-            File.AppendAllText(
-                ConfigStore.DedupeLogPath,
-                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}",
-                new UTF8Encoding(false));
-        }
-        catch
-        {
-            // Dedupe debug logging is optional and must not affect OCR or translation.
-        }
+        _diagnostics.AppendDedupeLog(message);
     }
 
     private async void Overlay_ReplySubmitted(object? sender, ReplySubmittedEventArgs e)
@@ -1302,27 +1155,6 @@ public partial class MainWindow : Window
             case HotKeyRegistrationStatus.RegistrationFailed:
                 AddLog("回话热键注册失败，可能已被其他程序占用。");
                 break;
-        }
-    }
-
-    private static void OpenShellPath(string path)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true
-            });
-        }
-        catch
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                Arguments = $"/select,\"{path}\"",
-                UseShellExecute = true
-            });
         }
     }
 
