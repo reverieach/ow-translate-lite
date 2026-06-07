@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
@@ -26,21 +25,15 @@ public partial class MainWindow : Window
     private const int MaxTranslationQueueItems = 30;
     private const int MaxTranslationBatchSize = 4;
     private const int ReplyHotkeyId = 0x4F57;
-    private const int WmHotkey = 0x0312;
-    private const uint ModControl = 0x0002;
-    private const uint ModAlt = 0x0001;
-    private const uint ModShift = 0x0004;
-    private const uint VkReturn = 0x0D;
-    private const uint VkSpace = 0x20;
 
     private readonly ConfigStore _config = new();
     private readonly RecentChatLanguageTracker _recentChatLanguages = new();
+    private readonly HotKeyService _replyHotKey = new(ReplyHotkeyId);
     private OwGlossaryService _glossary = null!;
     private TranslationCoordinator _coordinator = null!;
     private OverlayWindow? _overlay;
     private CancellationTokenSource? _loopCts;
     private CancellationTokenSource? _replyTranslationCts;
-    private HwndSource? _hotkeySource;
     private IOcrEngine? _currentOcrEngine;
     private readonly SemaphoreSlim _ocrEngineGate = new(1, 1);
     private readonly Queue<ParsedChatLine> _translationQueue = [];
@@ -57,7 +50,6 @@ public partial class MainWindow : Window
     private bool _wasChatVisibleLastTick;
     private bool _isRunning;
     private bool _isReplyModeActive;
-    private bool _replyHotkeyRegistered;
     private bool _isLoadingSettings;
     private bool _isApplyingOverlaySettings;
     private bool _isAdjustingTranslationFrame;
@@ -68,6 +60,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         ModelCombo.AddHandler(WpfTextBoxBase.TextChangedEvent, new TextChangedEventHandler(TranslationSettings_Changed));
+        _replyHotKey.Pressed += (_, _) => ToggleReplyMode();
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
     }
@@ -91,7 +84,7 @@ public partial class MainWindow : Window
     {
         EndFrameAdjustment(log: false);
         ExitReplyMode();
-        UnregisterReplyHotkey();
+        _replyHotKey.Dispose();
         _replyTranslationCts?.Cancel();
         StopLoop(hideOverlay: false, clearOverlay: false);
         InvalidateOcrEngine();
@@ -1289,92 +1282,27 @@ public partial class MainWindow : Window
         return trimmed.Length <= 36 ? trimmed : trimmed[..36] + "...";
     }
 
-    private void RegisterReplyHotkey()
-    {
-        if (!_config.Settings.EnableReplyHotkey)
-        {
-            return;
-        }
-
-        if (!TryParseReplyHotkey(_config.Settings.ReplyHotkey, out uint modifiers, out uint key))
-        {
-            AddLog($"回话热键配置无效：{_config.Settings.ReplyHotkey}");
-            return;
-        }
-
-        nint handle = new WindowInteropHelper(this).Handle;
-        if (handle == 0)
-        {
-            AddLog("回话热键注册失败：窗口句柄不可用。");
-            return;
-        }
-
-        _hotkeySource = HwndSource.FromHwnd(handle);
-        _hotkeySource?.AddHook(WndProc);
-        _replyHotkeyRegistered = RegisterHotKey(handle, ReplyHotkeyId, modifiers, key);
-        AddLog(_replyHotkeyRegistered
-            ? $"回话热键已启用：{_config.Settings.ReplyHotkey}。"
-            : "回话热键注册失败，可能已被其他程序占用。");
-    }
-
-    private void UnregisterReplyHotkey()
-    {
-        nint handle = new WindowInteropHelper(this).Handle;
-        if (_replyHotkeyRegistered && handle != 0)
-        {
-            _ = UnregisterHotKey(handle, ReplyHotkeyId);
-        }
-
-        _replyHotkeyRegistered = false;
-        _hotkeySource?.RemoveHook(WndProc);
-        _hotkeySource = null;
-    }
-
     private void ApplyReplyHotkeyRegistration()
     {
-        UnregisterReplyHotkey();
-        RegisterReplyHotkey();
-    }
-
-    private static bool TryParseReplyHotkey(string value, out uint modifiers, out uint key)
-    {
-        modifiers = 0;
-        key = 0;
-        foreach (string part in value.Split('+', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        HotKeyRegistrationResult result = _replyHotKey.Apply(
+            new WindowInteropHelper(this).Handle,
+            _config.Settings.EnableReplyHotkey,
+            _config.Settings.ReplyHotkey);
+        switch (result.Status)
         {
-            switch (part.ToLowerInvariant())
-            {
-                case "ctrl":
-                case "control":
-                    modifiers |= ModControl;
-                    break;
-                case "shift":
-                    modifiers |= ModShift;
-                    break;
-                case "alt":
-                    modifiers |= ModAlt;
-                    break;
-                case "enter":
-                    key = VkReturn;
-                    break;
-                case "space":
-                    key = VkSpace;
-                    break;
-            }
+            case HotKeyRegistrationStatus.Registered:
+                AddLog($"回话热键已启用：{result.Gesture}。");
+                break;
+            case HotKeyRegistrationStatus.InvalidGesture:
+                AddLog($"回话热键配置无效：{result.Gesture}");
+                break;
+            case HotKeyRegistrationStatus.WindowHandleUnavailable:
+                AddLog("回话热键注册失败：窗口句柄不可用。");
+                break;
+            case HotKeyRegistrationStatus.RegistrationFailed:
+                AddLog("回话热键注册失败，可能已被其他程序占用。");
+                break;
         }
-
-        return modifiers != 0 && key != 0;
-    }
-
-    private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
-    {
-        if (msg == WmHotkey && wParam.ToInt32() == ReplyHotkeyId)
-        {
-            handled = true;
-            ToggleReplyMode();
-        }
-
-        return 0;
     }
 
     private static void OpenShellPath(string path)
@@ -1602,9 +1530,4 @@ public partial class MainWindow : Window
     private static bool IsFinite(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern bool UnregisterHotKey(nint hWnd, int id);
 }
