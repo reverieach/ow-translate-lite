@@ -26,6 +26,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Tools\**\*.cs"/>
+    <None Remove="Tools\**\*"/>
+  </ItemGroup>
+
+  <ItemGroup>
     <Content Include="Resources\OwGlossary.zh-CN.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

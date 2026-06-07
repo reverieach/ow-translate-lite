@@ -9,3 +9,5 @@ app/
 *.zip
 publish/
 dist/
+Docs/ocr-lab-output/
+ow-screenshot/
