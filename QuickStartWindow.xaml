@@ -56,12 +56,12 @@
                     <TextBlock Text="点击“选择聊天区域”，框选 OW 左边的消息文本框部分即可。需要完整包含玩家消息文本，尤其是 [玩家名]：正文 这一整行。"/>
                     <TextBlock Text="区域不要框太大，尽量避开头像、技能 HUD、菜单提示和背景噪声；但也不要截断聊天行的顶部、底部或右侧文字。"/>
 
-                    <TextBlock Text="5. 设置 Overlay" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
-                    <TextBlock Text="点击“显示 Overlay”可以预览翻译框。关闭“鼠标穿透”后，可拖动顶部横条移动位置，拖动右下角调整大小，也可以滚动 overlay 历史；开始比赛前建议重新打开鼠标穿透，避免挡住游戏操作。"/>
-                    <TextBlock Text="透明度只影响黑色背景，不会让字体变糊。overlay 会保留最近 50 条翻译，OCR 没文字后会延迟隐藏但不清空历史。"/>
+                    <TextBlock Text="5. 设置翻译框" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
+                    <TextBlock Text="点击“显示翻译框”可以预览位置。需要移动或缩放时点击“调整翻译框”，拖动顶部横条移动，拖动右下角调整大小；调整完成后点击“完成调整”，程序会恢复鼠标穿透。"/>
+                    <TextBlock Text="透明度只影响黑色背景，不会让字体变糊。翻译框会保留最近 50 条翻译，OCR 没文字后会延迟隐藏但不清空历史。"/>
 
                     <TextBlock Text="6. 开始测试" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
-                    <TextBlock Text="所有配置都会自动保存并立即应用，确认 API、模型、OCR 源语言、聊天区域和 overlay 位置后，点击“开始”。暂停会停止识别并隐藏 overlay，但不会清空历史；只有“清空”按钮会清空主日志和 overlay 历史。"/>
+                    <TextBlock Text="所有配置都会自动保存并立即应用，确认 API、模型、OCR 源语言、聊天区域和翻译框位置后，点击“开始”。暂停会停止识别并隐藏翻译框，但不会清空历史；只有“清空”按钮会清空主日志和翻译框历史。"/>
                     <TextBlock Text="如果出现重复，优先检查是否框选过大；韩语场景优先把源语言固定为“韩语”。如果漏字，稍微扩大聊天框选区域。"/>
                 </StackPanel>
             </ScrollViewer>

@@ -4,7 +4,7 @@
         xmlns:primitives="clr-namespace:System.Windows.Controls.Primitives;assembly=PresentationFramework"
         WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True"
         Background="Transparent" Topmost="True" ShowInTaskbar="False"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="Manual"
         Width="520" Height="180">
     <Border x:Name="FloatingPanel" BorderBrush="#5578D995" BorderThickness="1" Padding="12">
         <Grid>

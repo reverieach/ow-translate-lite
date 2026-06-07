@@ -44,6 +44,7 @@ public partial class MainWindow : Window
     private bool _isRunning;
     private bool _isLoadingSettings;
     private bool _isApplyingOverlaySettings;
+    private bool _isAdjustingTranslationFrame;
     private readonly List<TranslationRecord> _records = [];
 
     public MainWindow()
@@ -63,12 +64,14 @@ public partial class MainWindow : Window
         LoadSettingsToUi();
         EnsureOverlay();
         ApplyRunningState();
+        ApplyFrameAdjustmentState();
         AddLog("就绪。正式测试建议使用 DeepSeek API；Local Rules 仅用于离线规则冒烟测试。");
         ShowQuickStartIfNeeded();
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
+        EndFrameAdjustment(log: false);
         StopLoop(hideOverlay: false, clearOverlay: false);
         SaveSettingsFromUi();
         _overlay?.Close();
@@ -296,19 +299,54 @@ public partial class MainWindow : Window
     private void ShowOverlay_Click(object sender, RoutedEventArgs e)
     {
         EnsureOverlay();
-        if (!_isRunning && ClickThroughCheck.IsChecked == true)
-        {
-            ClickThroughCheck.IsChecked = false;
-            SaveSettingsFromUi();
-            AddLog("已进入 Overlay 调整模式；拖动顶部横条可移动，拖动右下角可缩放。");
-        }
-
+        ApplyOverlaySettings();
         _overlay?.Show();
         _overlay?.Activate();
     }
 
+    private void AdjustFrame_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isAdjustingTranslationFrame)
+        {
+            EndFrameAdjustment(log: true);
+            return;
+        }
+
+        BeginFrameAdjustment();
+    }
+
+    private void BeginFrameAdjustment()
+    {
+        EnsureOverlay();
+        _isAdjustingTranslationFrame = true;
+        ClickThroughCheck.IsChecked = false;
+        SaveSettingsFromUi();
+        ApplyFrameAdjustmentState();
+        _overlay?.Show();
+        _overlay?.Activate();
+        AddLog("正在调整翻译框。拖动顶部横条移动，拖动右下角缩放；完成后点击“完成调整”恢复鼠标穿透。");
+    }
+
+    private void EndFrameAdjustment(bool log)
+    {
+        if (!_isAdjustingTranslationFrame)
+        {
+            return;
+        }
+
+        _isAdjustingTranslationFrame = false;
+        ClickThroughCheck.IsChecked = true;
+        SaveSettingsFromUi();
+        ApplyFrameAdjustmentState();
+        if (log)
+        {
+            AddLog("已完成翻译框调整，鼠标穿透已恢复。");
+        }
+    }
+
     private void Start_Click(object sender, RoutedEventArgs e)
     {
+        EndFrameAdjustment(log: true);
         SaveSettingsFromUi();
         if (_config.Settings.CaptureRegion is null)
         {
@@ -477,7 +515,9 @@ public partial class MainWindow : Window
         _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
         _wasChatVisibleLastTick = false;
+        _isAdjustingTranslationFrame = false;
         LoadSettingsToUi();
+        ApplyFrameAdjustmentState();
         ApplyRunningState();
         AddLog("本机数据已清除，已恢复默认配置。");
     }
@@ -1133,13 +1173,33 @@ public partial class MainWindow : Window
 
     private void ApplyRunningState()
     {
-        if (StartButton is null || StopButton is null)
+        if (StartButton is null || StopButton is null || AdjustFrameButton is null)
         {
             return;
         }
 
         StartButton.IsEnabled = !_isRunning;
         StopButton.IsEnabled = _isRunning;
+        AdjustFrameButton.IsEnabled = true;
+    }
+
+    private void ApplyFrameAdjustmentState()
+    {
+        if (AdjustFrameButton is null || FrameAdjustHint is null)
+        {
+            return;
+        }
+
+        AdjustFrameButton.Content = _isAdjustingTranslationFrame
+            ? "完成调整"
+            : "调整翻译框";
+        AdjustFrameButton.Background = _isAdjustingTranslationFrame
+            ? System.Windows.Media.Brushes.LightGoldenrodYellow
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(155, 183, 240));
+        AdjustFrameButton.BorderBrush = AdjustFrameButton.Background;
+        FrameAdjustHint.Visibility = _isAdjustingTranslationFrame
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private string CreateRunSettingsKey()

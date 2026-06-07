@@ -123,7 +123,7 @@
                     <Button x:Name="FetchModelsButton" Grid.Column="2" Content="获取模型" Click="FetchModels_Click"/>
                 </Grid>
 
-                <TextBlock Text="Overlay" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                <TextBlock Text="翻译框" FontWeight="SemiBold" Margin="0,0,0,8"/>
                 <Grid Margin="0,0,0,12">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/>
@@ -140,11 +140,18 @@
                     </StackPanel>
                 </Grid>
                 <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Margin="0,0,0,6" Checked="OverlaySettings_Changed" Unchecked="OverlaySettings_Changed"/>
-                <TextBlock Text="关闭鼠标穿透后可拖动黑框；内容过多时会在框内向上滚动。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,16"/>
+                <TextBlock Text="默认开启鼠标穿透，不挡游戏操作；需要移动或缩放时点击“调整翻译框”。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                <TextBlock x:Name="FrameAdjustHint"
+                           Text="正在调整翻译框：拖动顶部横条移动，拖动右下角缩放。调整完成后请点击“完成调整”，程序会恢复鼠标穿透。"
+                           Foreground="#EBCB6B"
+                           TextWrapping="Wrap"
+                           Visibility="Collapsed"
+                           Margin="0,0,0,16"/>
 
                 <WrapPanel>
                     <Button Content="选择聊天区域" Click="SelectArea_Click"/>
-                    <Button Content="显示 Overlay" Click="ShowOverlay_Click"/>
+                    <Button Content="显示翻译框" Click="ShowOverlay_Click"/>
+                    <Button x:Name="AdjustFrameButton" Content="调整翻译框" Background="#9BB7F0" BorderBrush="#9BB7F0" Click="AdjustFrame_Click"/>
                 </WrapPanel>
                 <WrapPanel Margin="0,10,0,0">
                     <Button x:Name="StartButton" Content="开始" Click="Start_Click"/>
