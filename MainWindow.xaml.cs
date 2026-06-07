@@ -28,9 +28,9 @@ public partial class MainWindow : Window
     private readonly RecentChatLanguageTracker _recentChatLanguages = new();
     private readonly HotKeyService _replyHotKey = new(ReplyHotkeyId);
     private readonly DiagnosticsService _diagnostics = new();
+    private readonly OverlayController _overlayController = new();
     private OwGlossaryService _glossary = null!;
     private TranslationCoordinator _coordinator = null!;
-    private OverlayWindow? _overlay;
     private CancellationTokenSource? _loopCts;
     private CancellationTokenSource? _replyTranslationCts;
     private IOcrEngine? _currentOcrEngine;
@@ -50,7 +50,6 @@ public partial class MainWindow : Window
     private bool _isRunning;
     private bool _isReplyModeActive;
     private bool _isLoadingSettings;
-    private bool _isApplyingOverlaySettings;
     private bool _isAdjustingTranslationFrame;
     private int _runGeneration;
     private readonly List<TranslationRecord> _records = [];
@@ -60,6 +59,11 @@ public partial class MainWindow : Window
         InitializeComponent();
         ModelCombo.AddHandler(WpfTextBoxBase.TextChangedEvent, new TextChangedEventHandler(TranslationSettings_Changed));
         _replyHotKey.Pressed += (_, _) => ToggleReplyMode();
+        _overlayController.BoundsChangedByUser += Overlay_BoundsChanged;
+        _overlayController.ReplySubmitted += Overlay_ReplySubmitted;
+        _overlayController.ReplyEditingStarted += Overlay_ReplyEditingStarted;
+        _overlayController.ReplyTargetLanguageChanged += Overlay_ReplyTargetLanguageChanged;
+        _overlayController.ReplyModeExited += Overlay_ReplyModeExited;
         Loaded += MainWindow_Loaded;
         Closing += MainWindow_Closing;
     }
@@ -88,7 +92,7 @@ public partial class MainWindow : Window
         StopLoop(hideOverlay: false, clearOverlay: false);
         InvalidateOcrEngine();
         SaveSettingsFromUi();
-        _overlay?.Close();
+        _overlayController.Close();
     }
 
     private void LoadSettingsToUi()
@@ -320,7 +324,7 @@ public partial class MainWindow : Window
             _config.Save();
             UpdateRegionText();
             EnsureOverlay();
-            _overlay?.MoveNear(rect);
+            _overlayController.MoveNear(rect);
             AddLog($"已选择区域 {rect.Left:0},{rect.Top:0} {rect.Width:0}x{rect.Height:0}");
         };
         selector.ShowDialog();
@@ -330,8 +334,7 @@ public partial class MainWindow : Window
     {
         EnsureOverlay();
         ApplyOverlaySettings();
-        _overlay?.Show();
-        _overlay?.Activate();
+        _overlayController.ShowAndActivate();
     }
 
     private void AdjustFrame_Click(object sender, RoutedEventArgs e)
@@ -352,8 +355,7 @@ public partial class MainWindow : Window
         ClickThroughCheck.IsChecked = false;
         SaveSettingsFromUi();
         ApplyFrameAdjustmentState();
-        _overlay?.Show();
-        _overlay?.Activate();
+        _overlayController.ShowAndActivate();
         AddLog("正在调整翻译框。拖动顶部横条移动，拖动右下角缩放；完成后点击“完成调整”恢复鼠标穿透。");
     }
 
@@ -499,7 +501,7 @@ public partial class MainWindow : Window
         }
 
         StopLoop(hideOverlay: true, clearOverlay: true);
-        _overlay?.Hide();
+        _overlayController.Hide();
         LogList.Items.Clear();
         _config.ResetUserData();
         _coordinator = CreateCoordinator();
@@ -520,23 +522,7 @@ public partial class MainWindow : Window
 
     private void SaveOverlayBounds(AppSettings settings)
     {
-        if (_overlay is null)
-        {
-            return;
-        }
-
-        if (!IsFinite(_overlay.Left) ||
-            !IsFinite(_overlay.Top) ||
-            !IsFinite(_overlay.Width) ||
-            !IsFinite(_overlay.Height))
-        {
-            return;
-        }
-
-        settings.OverlayLeft = _overlay.Left;
-        settings.OverlayTop = _overlay.Top;
-        settings.OverlayWidth = _overlay.Width;
-        settings.OverlayHeight = _overlay.Height;
+        _overlayController.SaveBoundsTo(settings);
     }
 
     private async Task RunLoopAsync(int generation, CancellationToken cancellationToken)
@@ -801,8 +787,8 @@ public partial class MainWindow : Window
         _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
         EnsureOverlay();
-        _overlay?.Show();
-        _overlay?.UpdateRecords(_records);
+        _overlayController.Show();
+        _overlayController.UpdateRecords(_records);
     }
 
     private bool IsDisplayDuplicate(TranslationRecord record)
@@ -898,57 +884,30 @@ public partial class MainWindow : Window
             _overlayVisibleForHistoryPeek = false;
             _overlayHiddenByIdle = false;
             _wasChatVisibleLastTick = false;
-            _overlay?.Hide();
+            _overlayController.Hide();
         }
     }
 
     private void EnsureOverlay()
     {
-        if (_overlay is not null)
-        {
-            ApplyOverlaySettings();
-            return;
-        }
-
-        _overlay = new OverlayWindow();
-        _overlay.LocationChanged += Overlay_BoundsChanged;
-        _overlay.SizeChanged += Overlay_BoundsChanged;
-        _overlay.ReplySubmitted += Overlay_ReplySubmitted;
-        _overlay.ReplyEditingStarted += Overlay_ReplyEditingStarted;
-        _overlay.ReplyTargetLanguageChanged += Overlay_ReplyTargetLanguageChanged;
-        _overlay.ReplyModeExited += Overlay_ReplyModeExited;
-        ApplyOverlaySettings();
+        bool wasCreated = _overlayController.IsCreated;
+        _overlayController.Ensure(_config.Settings);
         if (_config.Settings.CaptureRegion is CaptureRegion region)
         {
-            _overlay.MoveNear(region.ToRect());
+            if (!wasCreated)
+            {
+                _overlayController.MoveNear(region.ToRect());
+            }
         }
     }
 
     private void ApplyOverlaySettings()
     {
-        if (_overlay is null)
-        {
-            return;
-        }
-
-        _isApplyingOverlaySettings = true;
-        try
-        {
-            _overlay.ApplySettings(_config.Settings);
-        }
-        finally
-        {
-            _isApplyingOverlaySettings = false;
-        }
+        _overlayController.ApplySettings(_config.Settings);
     }
 
     private void Overlay_BoundsChanged(object? sender, EventArgs e)
     {
-        if (_isApplyingOverlaySettings || _overlay is null)
-        {
-            return;
-        }
-
         SaveOverlayBounds(_config.Settings);
         _config.Save();
     }
@@ -987,13 +946,13 @@ public partial class MainWindow : Window
     {
         if (_replyTranslationCts is not null)
         {
-            _overlay?.SetReplyStatus("上一句还在翻译");
+            _overlayController.SetReplyStatus("上一句还在翻译");
             return;
         }
 
         string targetLanguage = e.SelectedLanguage == "auto" ? ResolveReplyTargetLanguage() : e.SelectedLanguage;
-        _overlay?.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, targetLanguage);
-        _overlay?.SetReplyStatus("翻译中...");
+        _overlayController.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, targetLanguage);
+        _overlayController.SetReplyStatus("翻译中...");
         AddLog($"回话翻译：{GetLanguageLabel(targetLanguage)} <= {e.SourceText}");
 
         _replyTranslationCts = new CancellationTokenSource();
@@ -1007,30 +966,30 @@ public partial class MainWindow : Window
 
             if (string.IsNullOrWhiteSpace(translated))
             {
-                _overlay?.SetReplyStatus("翻译为空");
+                _overlayController.SetReplyStatus("翻译为空");
                 return;
             }
 
             System.Windows.Clipboard.SetText(translated);
-            _overlay?.ClearReplyInput();
-            _overlay?.SetReplyStatus($"已复制：{LimitReplyStatus(translated)}");
+            _overlayController.ClearReplyInput();
+            _overlayController.SetReplyStatus($"已复制：{LimitReplyStatus(translated)}");
             _isReplyModeActive = false;
             AddLog($"回话已复制：{translated}");
         }
         catch (OperationCanceledException)
         {
-            _overlay?.SetReplyStatus("已取消");
+            _overlayController.SetReplyStatus("已取消");
         }
         catch (Exception ex)
         {
-            _overlay?.SetReplyStatus($"失败：{LimitReplyStatus(ex.Message)}");
+            _overlayController.SetReplyStatus($"失败：{LimitReplyStatus(ex.Message)}");
             AddLog($"回话翻译失败：{ex.Message}");
         }
         finally
         {
             _replyTranslationCts?.Dispose();
             _replyTranslationCts = null;
-            _overlay?.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
+            _overlayController.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
         }
     }
 
@@ -1063,7 +1022,7 @@ public partial class MainWindow : Window
         _historyPeekOverlayUntil = null;
         _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
-        _overlay?.EnterReplyMode(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
+        _overlayController.EnterReplyMode(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
         AddLog("已进入回话模式。");
     }
 
@@ -1076,7 +1035,7 @@ public partial class MainWindow : Window
 
         _isReplyModeActive = false;
         _replyTranslationCts?.Cancel();
-        _overlay?.ExitReplyMode();
+        _overlayController.ExitReplyMode();
         AddLog("已退出回话模式。");
     }
 
@@ -1093,12 +1052,12 @@ public partial class MainWindow : Window
 
     private void RefreshReplyTargetDisplay()
     {
-        if (!_isReplyModeActive || _overlay is null)
+        if (!_isReplyModeActive || !_overlayController.IsCreated)
         {
             return;
         }
 
-        _overlay.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
+        _overlayController.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
     }
 
     private string ResolveReplyTargetLanguage()
@@ -1194,7 +1153,7 @@ public partial class MainWindow : Window
         _historyPeekOverlayUntil = null;
         _overlayVisibleForHistoryPeek = false;
         _overlayHiddenByIdle = false;
-        _overlay?.UpdateRecords(_records);
+        _overlayController.UpdateRecords(_records);
     }
 
     private void ClearTranslationQueue()
@@ -1215,7 +1174,7 @@ public partial class MainWindow : Window
 
     private void MaybeHideOverlayAfterIdle()
     {
-        if (!_isRunning || _overlay is null)
+        if (!_isRunning || !_overlayController.IsCreated)
         {
             return;
         }
@@ -1224,7 +1183,7 @@ public partial class MainWindow : Window
         {
             if (_historyPeekOverlayUntil is DateTime until && DateTime.Now >= until)
             {
-                _overlay.Hide();
+                _overlayController.Hide();
                 _overlayVisibleForHistoryPeek = false;
                 _historyPeekOverlayUntil = null;
                 _overlayHiddenByIdle = true;
@@ -1244,7 +1203,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        _overlay.Hide();
+        _overlayController.Hide();
         _overlayHiddenByIdle = true;
     }
 
@@ -1256,7 +1215,7 @@ public partial class MainWindow : Window
         }
 
         EnsureOverlay();
-        if (_overlay is null || _overlay.IsVisible)
+        if (_overlayController.IsVisible)
         {
             return;
         }
@@ -1264,8 +1223,8 @@ public partial class MainWindow : Window
         _historyPeekOverlayUntil = DateTime.Now + OverlayHistoryPeekDuration;
         _overlayVisibleForHistoryPeek = true;
         _overlayHiddenByIdle = false;
-        _overlay.UpdateRecords(_records);
-        _overlay.Show();
+        _overlayController.UpdateRecords(_records);
+        _overlayController.Show();
         AppendDedupeLog("history-peek show overlay for visible chat without new messages");
     }
 
