@@ -8,6 +8,7 @@ public sealed class TranslationCoordinator
     private readonly AppSettings _settings;
     private readonly OwGlossaryService _glossary;
     private readonly OwChatParser _parser;
+    private readonly Action<string>? _dedupeLog;
     private readonly List<VisibleMessageSnapshot> _previousVisibleMessages = [];
     private readonly HashSet<string> _seenInCurrentChatCycle = new(StringComparer.Ordinal);
     private readonly HashSet<string> _pendingMessageKeys = new(StringComparer.Ordinal);
@@ -25,10 +26,11 @@ public sealed class TranslationCoordinator
     public bool ChatCycleJustReset { get; private set; }
     public bool HasVisibleChat { get; private set; }
 
-    public TranslationCoordinator(AppSettings settings, OwGlossaryService glossary)
+    public TranslationCoordinator(AppSettings settings, OwGlossaryService glossary, Action<string>? dedupeLog = null)
     {
         _settings = settings;
         _glossary = glossary;
+        _dedupeLog = dedupeLog;
         _parser = new OwChatParser(glossary);
     }
 
@@ -41,6 +43,7 @@ public sealed class TranslationCoordinator
         _lastAnyMessageVisibleAt = null;
         ChatCycleJustReset = false;
         HasVisibleChat = false;
+        LogDedupe($"reset-cycle clearRecent={clearRecent}");
         if (clearRecent)
         {
             _recentDedupeCache.Clear();
@@ -52,6 +55,7 @@ public sealed class TranslationCoordinator
     {
         _pendingMessageKeys.Clear();
         _pendingMessageSnapshots.Clear();
+        LogDedupe("clear-pending-translations");
     }
 
     public void ReleasePendingTranslations(IReadOnlyList<ParsedChatLine> lines)
@@ -60,6 +64,11 @@ public sealed class TranslationCoordinator
         {
             _pendingMessageKeys.Remove(CreateMessageKey(line));
             RemovePendingSnapshot(CreateSnapshot(line));
+        }
+
+        if (lines.Count > 0)
+        {
+            LogDedupe($"release-pending count={lines.Count} lines={FormatLines(lines)}");
         }
     }
 
@@ -75,6 +84,7 @@ public sealed class TranslationCoordinator
         HasVisibleChat = false;
         if (_settings.CaptureRegion is null)
         {
+            LogDedupe("detect skipped: no capture region");
             return Array.Empty<ParsedChatLine>();
         }
 
@@ -82,9 +92,11 @@ public sealed class TranslationCoordinator
         using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
         IReadOnlyList<OcrTextLine> ocrLines = await ocrEngine.RecognizeAsync(bitmap, _settings.OcrLanguage, cancellationToken);
         IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(ocrLines);
+        LogDedupe($"ocr-frame ocrLines={ocrLines.Count} chatLines={chatLines.Count} previous={_previousVisibleMessages.Count} visible={FormatLines(chatLines)}");
         if (chatLines.Count == 0)
         {
             ChatCycleJustReset = ResetCycleIfChatStayedHidden();
+            LogDedupe($"no-chat-lines reset={ChatCycleJustReset}");
             return Array.Empty<ParsedChatLine>();
         }
 
@@ -93,6 +105,7 @@ public sealed class TranslationCoordinator
         CleanupRecentDedupe(now);
         _lastAnyMessageVisibleAt = now;
         List<ParsedChatLine> candidateLines = FindNewLinesByVisibleOrder(chatLines);
+        LogDedupe($"candidate-lines count={candidateLines.Count} candidates={FormatLines(candidateLines)}");
         UpdatePreviousVisibleMessages(chatLines);
 
         List<ParsedChatLine> newLines = [];
@@ -101,20 +114,20 @@ public sealed class TranslationCoordinator
         {
             string key = CreateMessageKey(line);
             VisibleMessageSnapshot snapshot = CreateSnapshot(line);
-            if (_seenInCurrentChatCycle.Contains(key) ||
-                _pendingMessageKeys.Contains(key) ||
-                IsPendingDuplicate(snapshot) ||
-                IsRecentDuplicate(key, snapshot, line.SourceText, now) ||
-                !batchKeys.Add(key))
+            string? duplicateReason = GetDuplicateReason(key, snapshot, line.SourceText, now, batchKeys);
+            if (duplicateReason is not null)
             {
+                LogDedupe($"drop reason={duplicateReason} line={FormatLine(line)} key={key}");
                 continue;
             }
 
             newLines.Add(line);
             _pendingMessageKeys.Add(key);
             _pendingMessageSnapshots.Add(snapshot);
+            LogDedupe($"accept line={FormatLine(line)} key={key}");
         }
 
+        LogDedupe($"new-lines count={newLines.Count}");
         return newLines;
     }
 
@@ -147,18 +160,21 @@ public sealed class TranslationCoordinator
                 _seenInCurrentChatCycle.Add(key);
                 _recentDedupeCache[key] = DateTime.Now;
                 _recentMessageSnapshots.Add(new RecentMessageSnapshot(snapshot, DateTime.Now));
+                LogDedupe($"translated remembered line={FormatLine(result.SourceLine)} key={key}");
             }
 
             return records;
         }
         finally
         {
-            foreach (ParsedChatLine line in newLines)
-            {
-                _pendingMessageKeys.Remove(CreateMessageKey(line));
-                RemovePendingSnapshot(CreateSnapshot(line));
-            }
+        foreach (ParsedChatLine line in newLines)
+        {
+            _pendingMessageKeys.Remove(CreateMessageKey(line));
+            RemovePendingSnapshot(CreateSnapshot(line));
         }
+
+        LogDedupe($"translate-finally released count={newLines.Count}");
+    }
     }
 
     private bool ResetCycleIfChatStayedHidden()
@@ -175,6 +191,7 @@ public sealed class TranslationCoordinator
             _pendingMessageKeys.Clear();
             _pendingMessageSnapshots.Clear();
             _lastAnyMessageVisibleAt = null;
+            LogDedupe("chat-hidden-reset");
             return true;
         }
 
@@ -185,6 +202,7 @@ public sealed class TranslationCoordinator
     {
         if (_previousVisibleMessages.Count == 0)
         {
+            LogDedupe($"order no-previous take-tail count={Math.Min(currentLines.Count, MaxTailMessagesWithoutAnchor)}");
             return TakeUnanchoredTail(currentLines);
         }
 
@@ -192,9 +210,11 @@ public sealed class TranslationCoordinator
         int anchorIndex = FindBestAnchorIndex(current);
         if (anchorIndex >= 0)
         {
+            LogDedupe($"order anchor-index={anchorIndex} newAfter={currentLines.Count - anchorIndex - 1} anchor={FormatSnapshot(current[anchorIndex])}");
             return currentLines.Skip(anchorIndex + 1).ToList();
         }
 
+        LogDedupe($"order no-anchor take-tail count={Math.Min(currentLines.Count, MaxTailMessagesWithoutAnchor)}");
         return TakeUnanchoredTail(currentLines);
     }
 
@@ -310,6 +330,41 @@ public sealed class TranslationCoordinator
             IsAnchorMatch(snapshot, recent.Message));
     }
 
+    private string? GetDuplicateReason(
+        string key,
+        VisibleMessageSnapshot snapshot,
+        string text,
+        DateTime now,
+        HashSet<string> batchKeys)
+    {
+        if (_seenInCurrentChatCycle.Contains(key))
+        {
+            return "seen-current-cycle";
+        }
+
+        if (_pendingMessageKeys.Contains(key))
+        {
+            return "pending-key";
+        }
+
+        if (IsPendingDuplicate(snapshot))
+        {
+            return "pending-similar";
+        }
+
+        if (IsRecentDuplicate(key, snapshot, text, now))
+        {
+            return $"recent-ttl-{GetRecentDedupeTtl(text).TotalSeconds:0}s";
+        }
+
+        if (!batchKeys.Add(key))
+        {
+            return "same-frame-duplicate";
+        }
+
+        return null;
+    }
+
     private void CleanupRecentDedupe(DateTime now)
     {
         foreach (KeyValuePair<string, DateTime> item in _recentDedupeCache.ToList())
@@ -384,6 +439,33 @@ public sealed class TranslationCoordinator
     {
         string lower = value.ToLowerInvariant();
         return System.Text.RegularExpressions.Regex.Replace(lower, @"[^\p{L}\p{N}]+", "");
+    }
+
+    private void LogDedupe(string message)
+    {
+        if (_settings.EnableDedupeDebugLog)
+        {
+            _dedupeLog?.Invoke(message);
+        }
+    }
+
+    private static string FormatLines(IReadOnlyList<ParsedChatLine> lines) =>
+        lines.Count == 0
+            ? "[]"
+            : "[" + string.Join(" | ", lines.Select(FormatLine)) + "]";
+
+    private static string FormatLine(ParsedChatLine line) =>
+        $"{Limit(line.Speaker, 24)}:{Limit(line.SourceText, 80)}";
+
+    private static string FormatSnapshot(VisibleMessageSnapshot snapshot) =>
+        $"{Limit(snapshot.NormalizedSpeaker, 24)}:{Limit(snapshot.NormalizedText, 80)}";
+
+    private static string Limit(string value, int maxLength)
+    {
+        string trimmed = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return trimmed.Length <= maxLength
+            ? trimmed
+            : trimmed[..maxLength] + "...";
     }
 
     private sealed record VisibleMessageSnapshot(string NormalizedSpeaker, string NormalizedText);

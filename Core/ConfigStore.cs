@@ -18,6 +18,7 @@ public sealed class ConfigStore
     public static string SettingsPath { get; } = Path.Combine(AppDirectory, "settings.json");
     public static string RuntimeLogPath { get; } = Path.Combine(AppDirectory, "runtime.log");
     public static string CrashLogPath { get; } = Path.Combine(AppDirectory, "crash.log");
+    public static string DedupeLogPath { get; } = Path.Combine(AppDirectory, "dedupe.log");
 
     public AppSettings Settings { get; private set; } = new();
 
@@ -57,6 +58,7 @@ public sealed class ConfigStore
         DeleteIfExists(SettingsPath);
         DeleteIfExists(RuntimeLogPath);
         DeleteIfExists(CrashLogPath);
+        DeleteIfExists(DedupeLogPath);
 
         foreach (string path in Directory.EnumerateFiles(AppDirectory, "diagnostics-*.txt"))
         {

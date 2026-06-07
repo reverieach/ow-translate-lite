@@ -17,6 +17,7 @@ public sealed class AppSettings
     public double OverlayOpacity { get; set; } = 0.86;
     public double OverlayFontSize { get; set; } = 20;
     public bool OverlayClickThrough { get; set; } = true;
+    public bool EnableDedupeDebugLog { get; set; }
     public double? OverlayLeft { get; set; }
     public double? OverlayTop { get; set; }
     public double? OverlayWidth { get; set; }

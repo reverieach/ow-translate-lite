@@ -157,10 +157,16 @@
                         <WrapPanel>
                             <Button Content="打开数据目录" Margin="0,0,8,8" Click="OpenDataDirectory_Click"/>
                             <Button Content="打开日志" Margin="0,0,8,8" Click="OpenRuntimeLog_Click"/>
+                            <Button Content="打开去重日志" Margin="0,0,8,8" Click="OpenDedupeLog_Click"/>
                             <Button Content="导出诊断" Margin="0,0,8,8" Click="ExportDiagnostics_Click"/>
                             <Button Content="清除本机数据" Margin="0,0,8,8" Background="#F29F9F" BorderBrush="#F29F9F" Click="ClearUserData_Click"/>
                         </WrapPanel>
-                        <TextBlock Text="测试版用于排查问题；导出的诊断会脱敏 API Key。" Foreground="#8FA19A" TextWrapping="Wrap"/>
+                        <CheckBox x:Name="DedupeDebugCheck"
+                                  Content="记录去重调试日志"
+                                  Margin="0,2,0,6"
+                                  Checked="BetaDebugSettings_Changed"
+                                  Unchecked="BetaDebugSettings_Changed"/>
+                        <TextBlock Text="测试版用于排查问题；导出的诊断会脱敏 API Key。去重调试日志默认关闭，测试重复问题时再开启。" Foreground="#8FA19A" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

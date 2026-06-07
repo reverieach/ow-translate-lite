@@ -54,7 +54,7 @@ public partial class MainWindow : Window
     {
         _config.Load();
         _glossary = OwGlossaryService.LoadDefault();
-        _coordinator = new TranslationCoordinator(_config.Settings, _glossary);
+        _coordinator = CreateCoordinator();
         GlossaryStatusText.Text = $"术语 { _glossary.EntryCount } 项 · { _glossary.Version }";
         LoadSettingsToUi();
         EnsureOverlay();
@@ -87,6 +87,7 @@ public partial class MainWindow : Window
             FontSizeSlider.Value = settings.OverlayFontSize;
             OpacitySlider.Value = settings.OverlayOpacity;
             ClickThroughCheck.IsChecked = settings.OverlayClickThrough;
+            DedupeDebugCheck.IsChecked = settings.EnableDedupeDebugLog;
             FirstRunPanel.Visibility = settings.FirstRun ? Visibility.Visible : Visibility.Collapsed;
             UpdateProviderPreset();
             UpdateRegionText();
@@ -109,10 +110,14 @@ public partial class MainWindow : Window
         settings.OverlayFontSize = FontSizeSlider.Value;
         settings.OverlayOpacity = OpacitySlider.Value;
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
+        settings.EnableDedupeDebugLog = DedupeDebugCheck.IsChecked == true;
         SaveOverlayBounds(settings);
         _config.Save();
         ApplyOverlaySettings();
     }
+
+    private TranslationCoordinator CreateCoordinator() =>
+        new(_config.Settings, _glossary, AppendDedupeLog);
 
     private void SelectCombo(WpfComboBox combo, string value)
     {
@@ -194,6 +199,11 @@ public partial class MainWindow : Window
     }
 
     private void OverlaySettings_Changed(object sender, RoutedEventArgs e)
+    {
+        AutoSaveSettings();
+    }
+
+    private void BetaDebugSettings_Changed(object sender, RoutedEventArgs e)
     {
         AutoSaveSettings();
     }
@@ -403,6 +413,21 @@ public partial class MainWindow : Window
         AddLog($"已打开日志：{ConfigStore.RuntimeLogPath}");
     }
 
+    private void OpenDedupeLog_Click(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(ConfigStore.AppDirectory);
+        if (!File.Exists(ConfigStore.DedupeLogPath))
+        {
+            File.WriteAllText(
+                ConfigStore.DedupeLogPath,
+                "OW Translator Lite dedupe debug log\n",
+                new UTF8Encoding(false));
+        }
+
+        OpenShellPath(ConfigStore.DedupeLogPath);
+        AddLog($"已打开去重日志：{ConfigStore.DedupeLogPath}");
+    }
+
     private void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
     {
         SaveSettingsFromUi();
@@ -439,7 +464,7 @@ public partial class MainWindow : Window
         _overlay?.Hide();
         LogList.Items.Clear();
         _config.ResetUserData();
-        _coordinator = new TranslationCoordinator(_config.Settings, _glossary);
+        _coordinator = CreateCoordinator();
         InvalidateOcrEngine();
         _activeRunSettingsKey = null;
         _pausedAt = null;
@@ -836,6 +861,7 @@ public partial class MainWindow : Window
         builder.AppendLine($"SettingsPath: {ConfigStore.SettingsPath}");
         builder.AppendLine($"RuntimeLogPath: {ConfigStore.RuntimeLogPath}");
         builder.AppendLine($"CrashLogPath: {ConfigStore.CrashLogPath}");
+        builder.AppendLine($"DedupeLogPath: {ConfigStore.DedupeLogPath}");
         builder.AppendLine();
         builder.AppendLine("== Settings ==");
         builder.AppendLine($"OcrEngine: {settings.OcrEngine}");
@@ -850,6 +876,7 @@ public partial class MainWindow : Window
         builder.AppendLine($"OverlayOpacity: {settings.OverlayOpacity:0.###}");
         builder.AppendLine($"OverlayFontSize: {settings.OverlayFontSize:0.###}");
         builder.AppendLine($"OverlayClickThrough: {settings.OverlayClickThrough}");
+        builder.AppendLine($"EnableDedupeDebugLog: {settings.EnableDedupeDebugLog}");
         builder.AppendLine($"OverlayBounds: {FormatBounds(settings)}");
         builder.AppendLine($"CaptureRegion: {FormatRegion(settings.CaptureRegion)}");
         builder.AppendLine();
@@ -861,6 +888,7 @@ public partial class MainWindow : Window
 
         AppendFileTail(builder, ConfigStore.RuntimeLogPath, "Runtime Log Tail", 120);
         AppendFileTail(builder, ConfigStore.CrashLogPath, "Crash Log Tail", 120);
+        AppendFileTail(builder, ConfigStore.DedupeLogPath, "Dedupe Debug Log Tail", 200);
 
         return builder.ToString();
     }
@@ -919,6 +947,27 @@ public partial class MainWindow : Window
         catch
         {
             // Runtime logging is diagnostic-only and must not interrupt translation.
+        }
+    }
+
+    private void AppendDedupeLog(string message)
+    {
+        if (!_config.Settings.EnableDedupeDebugLog)
+        {
+            return;
+        }
+
+        try
+        {
+            Directory.CreateDirectory(ConfigStore.AppDirectory);
+            File.AppendAllText(
+                ConfigStore.DedupeLogPath,
+                $"[{DateTime.Now:HH:mm:ss.fff}] {message}{Environment.NewLine}",
+                new UTF8Encoding(false));
+        }
+        catch
+        {
+            // Dedupe debug logging is optional and must not affect OCR or translation.
         }
     }
 

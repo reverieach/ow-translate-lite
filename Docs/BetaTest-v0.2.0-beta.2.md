@@ -4,8 +4,8 @@
 
 - 修复新机器首次选择语言/模型时可能因为 overlay 坐标未初始化导致闪退的问题。
 - overlay 拖动或调整大小后会自动保存位置和大小。
-- 增加 beta 测试入口：打开数据目录、打开日志、导出诊断、清除本机数据。
-- 增加运行日志和崩溃日志：`%AppData%\OWTranslatorLite\runtime.log`、`%AppData%\OWTranslatorLite\crash.log`。
+- 增加 beta 测试入口：打开数据目录、打开日志、打开去重日志、导出诊断、清除本机数据。
+- 增加运行日志、崩溃日志和可选去重调试日志：`%AppData%\OWTranslatorLite\runtime.log`、`%AppData%\OWTranslatorLite\crash.log`、`%AppData%\OWTranslatorLite\dedupe.log`。
 - 保留 beta.1 的 OneOCR 彩色预处理、Quick Start、异步翻译队列和重复过滤逻辑。
 
 ## 推荐配置
@@ -43,6 +43,8 @@
 
 - “打开数据目录”：打开 `%AppData%\OWTranslatorLite`，里面有设置、日志和诊断文件。
 - “打开日志”：打开 `runtime.log`，记录程序内实时记录。
+- “记录去重调试日志”：默认关闭；测试重复/漏翻问题时开启，会记录 OCR 聊天行、锚点判断、候选新消息和重复丢弃原因。
+- “打开去重日志”：打开 `dedupe.log`。
 - “导出诊断”：生成 `diagnostics-日期时间.txt`，包含脱敏配置、最近日志和崩溃日志尾部；API Key 不会明文导出。
 - “清除本机数据”：清空设置、API Key、日志、诊断文件和 overlay 历史，并恢复默认配置。
 
