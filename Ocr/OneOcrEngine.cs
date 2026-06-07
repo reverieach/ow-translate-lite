@@ -9,7 +9,7 @@ using Rect = System.Windows.Rect;
 
 namespace OwTranslateLite.Ocr;
 
-public sealed partial class OneOcrEngine : IOcrEngine
+public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
 {
     private long _context;
     private long _pipeline;
@@ -30,6 +30,7 @@ public sealed partial class OneOcrEngine : IOcrEngine
 
         using Bitmap prepared = OcrImagePreprocessor.PrepareColorPreserving(bitmap);
         BitmapData data = prepared.LockBits(new Rectangle(0, 0, prepared.Width, prepared.Height), ImageLockMode.ReadOnly, prepared.PixelFormat);
+        long instance = 0;
         try
         {
             Img img = new()
@@ -42,7 +43,7 @@ public sealed partial class OneOcrEngine : IOcrEngine
                 data_ptr = data.Scan0
             };
 
-            long res = OneOcrNative.RunOcrPipeline(_pipeline, ref img, _processOptions, out long instance);
+            long res = OneOcrNative.RunOcrPipeline(_pipeline, ref img, _processOptions, out instance);
             if (res != 0)
             {
                 return Array.Empty<OcrTextLine>();
@@ -89,6 +90,11 @@ public sealed partial class OneOcrEngine : IOcrEngine
         }
         finally
         {
+            if (instance != 0)
+            {
+                _ = OneOcrNative.ReleaseOcrResult(instance);
+            }
+
             prepared.UnlockBits(data);
         }
     }
@@ -113,11 +119,13 @@ public sealed partial class OneOcrEngine : IOcrEngine
             string key = "kj)TGtrK>f]b[Piow.gU+nC@s\"\"\"\"\"\"4";
             if (OneOcrNative.CreateOcrPipeline(modelPath, key, _context, out _pipeline) != 0)
             {
+                Dispose();
                 return Task.CompletedTask;
             }
 
             if (OneOcrNative.CreateOcrProcessOptions(out _processOptions) != 0)
             {
+                Dispose();
                 return Task.CompletedTask;
             }
 
@@ -127,9 +135,33 @@ public sealed partial class OneOcrEngine : IOcrEngine
         catch
         {
             _ready = false;
+            Dispose();
         }
 
         return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        if (_processOptions != 0)
+        {
+            _ = OneOcrNative.ReleaseOcrProcessOptions(_processOptions);
+            _processOptions = 0;
+        }
+
+        if (_pipeline != 0)
+        {
+            _ = OneOcrNative.ReleaseOcrPipeline(_pipeline);
+            _pipeline = 0;
+        }
+
+        if (_context != 0)
+        {
+            _ = OneOcrNative.ReleaseOcrInitOptions(_context);
+            _context = 0;
+        }
+
+        _ready = false;
     }
 
     private void ConfigureNativePath()
@@ -231,6 +263,22 @@ public sealed partial class OneOcrEngine : IOcrEngine
         [LibraryImport("oneocr.dll")]
         [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
         public static partial long GetOcrLineBoundingBox(long line, out IntPtr boundingBoxPtr);
+
+        [LibraryImport("oneocr.dll")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long ReleaseOcrResult(long instance);
+
+        [LibraryImport("oneocr.dll")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long ReleaseOcrProcessOptions(long opt);
+
+        [LibraryImport("oneocr.dll")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long ReleaseOcrPipeline(long pipeline);
+
+        [LibraryImport("oneocr.dll")]
+        [UnmanagedCallConv(CallConvs = [typeof(CallConvCdecl)])]
+        public static partial long ReleaseOcrInitOptions(long ctx);
     }
 
     private static partial class NativeMethods

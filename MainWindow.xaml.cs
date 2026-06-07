@@ -42,6 +42,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _replyTranslationCts;
     private HwndSource? _hotkeySource;
     private IOcrEngine? _currentOcrEngine;
+    private readonly SemaphoreSlim _ocrEngineGate = new(1, 1);
     private readonly Queue<ParsedChatLine> _translationQueue = [];
     private readonly object _translationQueueLock = new();
     private Task? _translationWorkerTask;
@@ -60,6 +61,7 @@ public partial class MainWindow : Window
     private bool _isLoadingSettings;
     private bool _isApplyingOverlaySettings;
     private bool _isAdjustingTranslationFrame;
+    private int _runGeneration;
     private readonly List<TranslationRecord> _records = [];
 
     public MainWindow()
@@ -80,7 +82,7 @@ public partial class MainWindow : Window
         EnsureOverlay();
         ApplyRunningState();
         ApplyFrameAdjustmentState();
-        AddLog("就绪。正式测试建议使用 DeepSeek API；Local Rules 仅用于离线规则冒烟测试。");
+        AddLog("就绪。正式测试建议使用 DeepSeek API。");
         ApplyReplyHotkeyRegistration();
         ShowQuickStartIfNeeded();
     }
@@ -92,6 +94,7 @@ public partial class MainWindow : Window
         UnregisterReplyHotkey();
         _replyTranslationCts?.Cancel();
         StopLoop(hideOverlay: false, clearOverlay: false);
+        InvalidateOcrEngine();
         SaveSettingsFromUi();
         _overlay?.Close();
     }
@@ -179,7 +182,7 @@ public partial class MainWindow : Window
     private void UpdateProviderPreset()
     {
         string provider = GetComboText(ProviderCombo);
-        bool apiEnabled = provider != "Local" && provider != "Local Rules";
+        bool apiEnabled = true;
         ApiUrlBox.IsEnabled = apiEnabled;
         ApiKeyBox.IsEnabled = apiEnabled;
         ModelCombo.IsEnabled = apiEnabled;
@@ -407,12 +410,6 @@ public partial class MainWindow : Window
     private async void FetchModels_Click(object sender, RoutedEventArgs e)
     {
         SaveSettingsFromUi();
-        if (GetComboText(ProviderCombo) is "Local" or "Local Rules")
-        {
-            AddLog("Local Rules 是测试模式，不需要获取模型。");
-            return;
-        }
-
         if (string.IsNullOrWhiteSpace(_config.Settings.ApiUrl))
         {
             AddLog("请先填写 API URL。");
@@ -578,35 +575,67 @@ public partial class MainWindow : Window
         settings.OverlayHeight = _overlay.Height;
     }
 
-    private async Task RunLoopAsync(CancellationToken cancellationToken)
+    private async Task RunLoopAsync(int generation, CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        while (!cancellationToken.IsCancellationRequested && IsActiveGeneration(generation))
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
             try
             {
-                IOcrEngine engine = GetOcrEngine();
-                IReadOnlyList<ParsedChatLine> newLines = await _coordinator.DetectNewLinesAsync(engine, cancellationToken);
+                IReadOnlyList<ParsedChatLine> newLines;
+                await _ocrEngineGate.WaitAsync(cancellationToken);
+                try
+                {
+                    IOcrEngine engine = GetOcrEngine();
+                    newLines = await _coordinator.DetectNewLinesAsync(engine, cancellationToken);
+                }
+                finally
+                {
+                    _ocrEngineGate.Release();
+                }
+
+                if (!IsActiveGeneration(generation))
+                {
+                    break;
+                }
+
                 _recentChatLanguages.Record(_coordinator.LastVisibleChatLines);
                 bool hasVisibleChat = _coordinator.HasVisibleChat;
                 bool chatJustBecameVisible = hasVisibleChat && !_wasChatVisibleLastTick;
                 _wasChatVisibleLastTick = hasVisibleChat;
                 if (newLines.Count > 0)
                 {
-                    EnqueueTranslationLines(newLines, cancellationToken);
+                    EnqueueTranslationLines(newLines, generation, cancellationToken);
                 }
                 else if (chatJustBecameVisible)
                 {
-                    Dispatcher.Invoke(ShowOverlayForHistoryPeek);
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (IsActiveGeneration(generation))
+                        {
+                            ShowOverlayForHistoryPeek();
+                        }
+                    });
                 }
                 else if (_coordinator.ChatCycleJustReset)
                 {
-                    Dispatcher.Invoke(MaybeHideOverlayAfterIdle);
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (IsActiveGeneration(generation))
+                        {
+                            MaybeHideOverlayAfterIdle();
+                        }
+                    });
                 }
 
                 stopwatch.Stop();
                 Dispatcher.Invoke(() =>
                 {
+                    if (!IsActiveGeneration(generation))
+                    {
+                        return;
+                    }
+
                     MaybeHideOverlayAfterIdle();
                     RefreshReplyTargetDisplay();
                     LatencyText.Text = $"{stopwatch.ElapsedMilliseconds} ms";
@@ -618,7 +647,13 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                Dispatcher.Invoke(() => AddLog($"错误：{ex.Message}"));
+                Dispatcher.Invoke(() =>
+                {
+                    if (IsActiveGeneration(generation))
+                    {
+                        AddLog($"错误：{ex.Message}");
+                    }
+                });
             }
 
             int delay = Math.Clamp(_config.Settings.CaptureIntervalMs, 400, 3000);
@@ -633,7 +668,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void EnqueueTranslationLines(IReadOnlyList<ParsedChatLine> lines, CancellationToken cancellationToken)
+    private void EnqueueTranslationLines(IReadOnlyList<ParsedChatLine> lines, int generation, CancellationToken cancellationToken)
     {
         List<ParsedChatLine> dropped = [];
         lock (_translationQueueLock)
@@ -652,13 +687,19 @@ public partial class MainWindow : Window
         if (dropped.Count > 0)
         {
             _coordinator.ReleasePendingTranslations(dropped);
-            Dispatcher.Invoke(() => AddLog($"翻译队列过长，已跳过 {dropped.Count} 条较旧消息。"));
+            Dispatcher.Invoke(() =>
+            {
+                if (IsActiveGeneration(generation))
+                {
+                    AddLog($"翻译队列过长，已跳过 {dropped.Count} 条较旧消息。");
+                }
+            });
         }
 
-        EnsureTranslationWorker(cancellationToken);
+        EnsureTranslationWorker(generation, cancellationToken);
     }
 
-    private void EnsureTranslationWorker(CancellationToken cancellationToken)
+    private void EnsureTranslationWorker(int generation, CancellationToken cancellationToken)
     {
         lock (_translationQueueLock)
         {
@@ -667,15 +708,15 @@ public partial class MainWindow : Window
                 return;
             }
 
-            _translationWorkerTask = Task.Run(() => RunTranslationWorkerAsync(cancellationToken), CancellationToken.None);
+            _translationWorkerTask = Task.Run(() => RunTranslationWorkerAsync(generation, cancellationToken), CancellationToken.None);
         }
     }
 
-    private async Task RunTranslationWorkerAsync(CancellationToken cancellationToken)
+    private async Task RunTranslationWorkerAsync(int generation, CancellationToken cancellationToken)
     {
         try
         {
-            while (!cancellationToken.IsCancellationRequested)
+            while (!cancellationToken.IsCancellationRequested && IsActiveGeneration(generation))
             {
                 List<ParsedChatLine> batch = await DequeueTranslationBatchAsync(cancellationToken);
                 if (batch.Count == 0)
@@ -688,10 +729,15 @@ public partial class MainWindow : Window
                     Stopwatch stopwatch = Stopwatch.StartNew();
                     IReadOnlyList<TranslationRecord> records = await _coordinator.TranslateAsync(batch, cancellationToken);
                     stopwatch.Stop();
-                    if (records.Count > 0)
+                    if (records.Count > 0 && IsActiveGeneration(generation))
                     {
                         Dispatcher.Invoke(() =>
                         {
+                            if (!IsActiveGeneration(generation))
+                            {
+                                return;
+                            }
+
                             AddTranslationRecords(records);
                             LatencyText.Text = $"{stopwatch.ElapsedMilliseconds} ms API";
                         });
@@ -705,7 +751,13 @@ public partial class MainWindow : Window
                 catch (Exception ex)
                 {
                     _coordinator.ReleasePendingTranslations(batch);
-                    Dispatcher.Invoke(() => AddLog($"翻译请求失败：{ex.Message}"));
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (IsActiveGeneration(generation))
+                        {
+                            AddLog($"翻译请求失败：{ex.Message}");
+                        }
+                    });
                 }
             }
         }
@@ -715,12 +767,12 @@ public partial class MainWindow : Window
             lock (_translationQueueLock)
             {
                 _translationWorkerTask = null;
-                shouldRestart = _isRunning && _translationQueue.Count > 0;
+                shouldRestart = _isRunning && IsActiveGeneration(generation) && _translationQueue.Count > 0;
             }
 
             if (shouldRestart && _loopCts is CancellationTokenSource cts)
             {
-                EnsureTranslationWorker(cts.Token);
+                EnsureTranslationWorker(generation, cts.Token);
             }
         }
     }
@@ -809,6 +861,7 @@ public partial class MainWindow : Window
             return _currentOcrEngine;
         }
 
+        DisposeCurrentOcrEngineUnlocked();
         _currentOcrEngineName = _config.Settings.OcrEngine;
         _currentOcrLanguage = _config.Settings.OcrLanguage;
         _currentOcrEngine = new OneOcrEngine();
@@ -838,6 +891,7 @@ public partial class MainWindow : Window
         }
 
         EnsureOverlay();
+        int generation = Interlocked.Increment(ref _runGeneration);
         _loopCts = new CancellationTokenSource();
         _isRunning = true;
         _pausedAt = null;
@@ -849,7 +903,7 @@ public partial class MainWindow : Window
         StatusText.Text = "运行中";
         ApplyRunningState();
         AddLog(message);
-        _ = RunLoopAsync(_loopCts.Token);
+        _ = RunLoopAsync(generation, _loopCts.Token);
     }
 
     private void StopLoop(bool hideOverlay, bool clearOverlay)
@@ -862,6 +916,7 @@ public partial class MainWindow : Window
         _loopCts?.Cancel();
         _loopCts?.Dispose();
         _loopCts = null;
+        Interlocked.Increment(ref _runGeneration);
         _isRunning = false;
         ClearTranslationQueue();
         _coordinator.ClearPendingTranslations();
@@ -1365,9 +1420,10 @@ public partial class MainWindow : Window
     private static void NormalizeOcrSettings(AppSettings settings)
     {
         settings.OcrEngine = "OneOCR";
-        if (settings.OcrLanguage is not ("auto" or "en" or "ja" or "ko"))
+        settings.OcrLanguage = "auto";
+        if (settings.TranslationProvider is "Local" or "Local Rules")
         {
-            settings.OcrLanguage = "auto";
+            settings.TranslationProvider = "DeepSeek";
         }
     }
 
@@ -1455,10 +1511,36 @@ public partial class MainWindow : Window
 
     private void InvalidateOcrEngine()
     {
-        _currentOcrEngine = null;
+        DisposeCurrentOcrEngine();
         _currentOcrEngineName = null;
         _currentOcrLanguage = null;
     }
+
+    private void DisposeCurrentOcrEngine()
+    {
+        _ocrEngineGate.Wait();
+        try
+        {
+            DisposeCurrentOcrEngineUnlocked();
+        }
+        finally
+        {
+            _ocrEngineGate.Release();
+        }
+    }
+
+    private void DisposeCurrentOcrEngineUnlocked()
+    {
+        if (_currentOcrEngine is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+
+        _currentOcrEngine = null;
+    }
+
+    private bool IsActiveGeneration(int generation) =>
+        _isRunning && Volatile.Read(ref _runGeneration) == generation;
 
     private void ApplyRunningState()
     {

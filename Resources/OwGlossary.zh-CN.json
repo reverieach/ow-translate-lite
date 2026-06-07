@@ -1,6 +1,6 @@
 {
   "version": "2026.06.08-beta3-glossary-v3",
-  "source_note": "OW-only glossary: official Blizzard hero roster plus curated wiki/community map, mode, competitive callout, ability nickname, and player slang aliases for Chinese users. Local Rules is a beta-only test mode; API prompt glossary usage is the primary path.",
+  "source_note": "OW-only glossary: official Blizzard hero roster plus curated wiki/community map, mode, competitive callout, ability nickname, and player slang aliases for Chinese users. API prompt glossary usage is the primary path.",
   "ignore_phrases": [
     "更换为", "已更换为", "加入了比赛", "离开了比赛", "比赛开始", "正在进入", "正在防守", "正在进攻",
     "消灭", "助攻", "目标点", "运载目标", "加时", "准备战斗", "按 H 更换英雄"
@@ -316,12 +316,5 @@
     { "category": "ability", "zh_cn": "女武神", "terms": ["valkyrie", "valk", "ヴァルキリー", "발키리", "天使大"] },
     { "category": "ability", "zh_cn": "伤害增幅", "terms": ["damage boost", "blue beam", "dmg boost", "ダメージブースト", "공격력 증폭", "蓝线"] },
     { "category": "ability", "zh_cn": "守护天使", "terms": ["guardian angel", "ga", "ガーディアン・エンジェル", "수호천사", "飞人"] }
-  ],
-  "local_rewrites": [
-    { "pattern": "^(group up|regroup|集合して|모여)", "zh_cn": "集合" },
-    { "pattern": "(focus|フォーカス|점사)\\s+(.+)", "zh_cn": "集火 {term}" },
-    { "pattern": "(.+)\\s+(no|なし|없음)\\s+(suzu|sleep|nade|lamp|deflect|bubble|hook)", "zh_cn": "{term}没{skill}" },
-    { "pattern": "(nano|blade|beat|trance|kitsune|grav|shatter|flux|emp)\\s+(soon|ready|ある|있음)", "zh_cn": "{skill}快好了" },
-    { "pattern": "(switch|swap|change)\\s+(.+)", "zh_cn": "换{term}" }
   ]
 }

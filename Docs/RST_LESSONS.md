@@ -24,6 +24,5 @@ The new app is intentionally not a fork of RSTGameTranslation. These are the imp
 - Parse only `speaker: message` style chat lines.
 - Skip Chinese UI/system hints such as hero-switch messages.
 - Default target language is Simplified Chinese.
-- Local mode is a beta smoke-test path only: it uses glossary hits and a few competitive rewrite rules, but production-quality translation should come from DeepSeek or another OpenAI-compatible API.
 - DeepSeek and OpenAI-compatible providers share one JSON prompt contract.
 - Glossary is UTF-8 JSON and should remain manually maintainable.

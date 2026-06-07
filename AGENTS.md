@@ -8,18 +8,19 @@
 - 当前目标不是完整通用翻译器，而是面向《守望先锋》外服对局聊天的轻量 Windows OCR 翻译 overlay。
 - 默认目标语言固定为简体中文。
 - 当前重点语言只维护英语、日语、韩语；其他语言不要主动扩展，除非用户明确要求。
-- 语音、TTS、剪贴板翻译、漫画模式、多 OCR 服务、多翻译商等通用功能已裁剪，不要随手加回。
-- `Local Rules` 只是 beta 阶段的离线冒烟测试模式，不是正式产品能力。后续正式版应移除或隐藏，不要继续把主要翻译质量建立在本地规则上。
+- 语音、TTS、漫画模式、多 OCR 服务、多翻译商、泛用剪贴板监听翻译等通用功能已裁剪，不要随手加回。
+- `Local Rules` 已移除，不要再把离线规则翻译作为产品路径加回。
 
 ## 当前技术栈
 
 - UI：WPF / .NET 9 / Windows x64。
 - 项目文件：`OwTranslateLite.csproj`。
 - OCR：当前固定 OneOCR，WinOCR 不可用，不要作为默认路径恢复。
+- 当前 OneOCR 本地接口不支持强制指定 EN/JA/KO 识别语言；UI 固定为自动识别。
 - 翻译：
   - `DeepSeek` 和 `OpenAI Compatible` 走 OpenAI-compatible chat completions。
-  - `Local Rules` 只用于测试本地规则，不代表正式翻译质量，正式版不应保留为主路径。
 - Overlay：独立 WPF 窗口，支持透明背景、鼠标穿透、拖动、调整大小、滚动历史。
+- 回话助手：overlay 底部可输入中文，翻译为英语/日语/韩语并复制到剪贴板；不自动发送游戏聊天。
 - 用户数据目录：`%AppData%\OWTranslatorLite`。
 
 ## 重要目录
@@ -27,7 +28,7 @@
 - `Core/`：设置、术语表、消息解析、去重、翻译协调逻辑。
 - `Ocr/`：截图、OCR 引擎和 OW 聊天图像预处理。
 - `Overlay/`：翻译 overlay 窗口。
-- `Translation/`：OpenAI-compatible API 请求、模型列表获取、本地规则翻译。
+- `Translation/`：OpenAI-compatible API 请求、模型列表获取。
 - `Resources/OwGlossary.zh-CN.json`：OW 术语表。
 - `Docs/`：架构、测试说明、历史决策。
 - `dist/`：发布产物，已在 `.gitignore`，不要提交。
@@ -38,7 +39,7 @@
 - 术语表文件：`Resources/OwGlossary.zh-CN.json`。
 - 当前词库版本：`2026.06.08-beta3-glossary-v3`。
 - 当前覆盖规模：约 302 个 entries、1672 个 terms/aliases。
-- 术语表主要服务 API prompt 的术语命中和中文锁定，不是为了继续扩大 `Local Rules` 的本地翻译范围。
+- 术语表主要服务 API prompt 的术语命中和中文锁定。
 - 只维护 OW 专用内容：
   - 英雄名、英雄简称和玩家常用叫法。
   - 技能、大招、常见技能简称和“技能交了/没技能”类 callout。
@@ -66,11 +67,7 @@
 - 框选区域应完整包含 OW 左侧聊天文本框里的 `[玩家名]：正文`。
 - 系统提示通常没有 `[player]：` 格式，应和玩家消息分开处理。
 - OW 聊天会自动消失，但打开聊天窗口可看到历史；overlay 历史不因 OCR 暂时无字而清空。
-- 当前 OCR 源语言选择是识别语言，不是目标语言：
-  - 自动：`auto`
-  - 英语：`en`
-  - 日语：`ja`
-  - 韩语：`ko`
+- 当前 OneOCR 使用自动识别；项目没有可调用的 EN/JA/KO 强制识别接口。
 
 ### 去重策略
 
@@ -152,7 +149,7 @@ E:\rstgametranslation\.dotnet\dotnet.exe publish OwTranslateLite.csproj -c Relea
 
 - 新机器选择语言或模型闪退：优先看 `crash.log` 和 overlay 坐标是否为 NaN/Infinity。
 - 翻译重复：优先检查 OCR 是否把同一行切块、玩家名是否被识别变化、锚点匹配是否失效。
-- 韩语/日语识别差：优先让用户把 OCR 源语言固定为韩语或日语，再考虑图像预处理。
+- 韩语/日语识别差：优先检查框选区域、图像预处理和截图样本，不要承诺 OneOCR 可强制指定识别语言。
 - 翻译不动：检查 API URL、API Key、模型、请求超时、网络延迟和队列是否积压。
 - Overlay 位置不保存：检查 `OverlayLeft/Top/Width/Height` 是否写入 `settings.json`，以及应用设置时是否触发了错误保存。
 
@@ -163,4 +160,4 @@ E:\rstgametranslation\.dotnet\dotnet.exe publish OwTranslateLite.csproj -c Relea
 3. 加密本地 API Key。
 4. 维护英语、日语、韩语 OW 术语和常见聊天表达。
 5. 暂不引入大体积本地翻译模型；竞技实时体验优先使用 DeepSeek/API + 术语表 + 缓存。
-6. beta 稳定后裁掉测试入口，移除或隐藏 `Local Rules`，整理发布包结构，做正式版本说明。
+6. beta 稳定后裁掉测试入口，整理发布包结构，做正式版本说明。

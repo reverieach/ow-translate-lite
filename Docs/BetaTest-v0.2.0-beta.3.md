@@ -5,7 +5,7 @@
 - 翻译框调整体验优化：点击“显示翻译框”只预览位置，点击“调整翻译框”才进入可移动/缩放模式。
 - 翻译框拖动不再使用 Windows 原生窗口拖动，减少贴边半屏/最大化吸附干扰。
 - 调整完成后点击“完成调整”，程序会自动恢复鼠标穿透，避免忘记关闭调整模式。
-- 设置自动保存：透明度、字号、鼠标穿透、OCR 源语言、翻译服务、API URL、API Key、模型都会自动保存并应用。
+- 设置自动保存：透明度、字号、鼠标穿透、翻译服务、API URL、API Key、模型都会自动保存并应用。
 - 增加 beta 测试入口：打开数据目录、打开日志、打开去重日志、导出诊断、清除本机数据。
 - 增加运行日志、崩溃日志和可选去重调试日志：`%AppData%\OWTranslatorLite\runtime.log`、`%AppData%\OWTranslatorLite\crash.log`、`%AppData%\OWTranslatorLite\dedupe.log`。
 - 内置一组默认聊天区域和翻译框位置；测试者可以直接开始，但不同分辨率或 UI 缩放下仍建议重新框选。
@@ -17,7 +17,7 @@
 
 - OW 显示模式：无边框窗口或窗口化无边框，不建议独占全屏。
 - OCR 引擎：OneOCR。
-- OCR 源语言：韩语测试优先选“韩语”，英语选“英语”，日语选“日语”；混合语言再尝试“自动”。
+- OCR：OneOCR 自动识别；当前本地接口不支持强制指定英语、日语或韩语。
 - 翻译：DeepSeek 或 OpenAI Compatible API。
 - DeepSeek API URL：`https://api.deepseek.com`
 - DeepSeek 模型：优先 `deepseek-v4-flash`。
@@ -62,4 +62,4 @@
 - 如果程序直接打不开，可以手动发送 `%AppData%\OWTranslatorLite\crash.log` 和 `%AppData%\OWTranslatorLite\runtime.log`。
 - 如果重复/漏翻，打开“记录去重调试日志”，复现几分钟后再“导出诊断”。
 - 如果翻译没反应，先确认 API Key、模型、聊天区域和 OW 无边框模式。
-- 如果 OCR 识别不稳定，优先固定源语言，例如韩语局选“韩语”。
+- 如果 OCR 识别不稳定，优先重新框选聊天区域并导出诊断；当前 OneOCR 自动识别，不支持强制指定源语言。

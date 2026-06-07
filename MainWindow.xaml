@@ -88,22 +88,18 @@
                         <ColumnDefinition/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="引擎" Foreground="#AFC6B6" FontSize="12"/>
-                    <TextBlock Grid.Column="2" Text="源语言识别" Foreground="#AFC6B6" FontSize="12"/>
+                    <TextBlock Grid.Column="2" Text="识别模式" Foreground="#AFC6B6" FontSize="12"/>
                     <ComboBox x:Name="OcrEngineCombo" Grid.Row="1" Grid.Column="0" IsEnabled="False" SelectionChanged="OcrSettings_SelectionChanged">
                         <ComboBoxItem Content="OneOCR"/>
                     </ComboBox>
-                    <ComboBox x:Name="OcrLanguageCombo" Grid.Row="1" Grid.Column="2" SelectionChanged="OcrSettings_SelectionChanged">
+                    <ComboBox x:Name="OcrLanguageCombo" Grid.Row="1" Grid.Column="2" IsEnabled="False" SelectionChanged="OcrSettings_SelectionChanged">
                         <ComboBoxItem Content="自动" Tag="auto"/>
-                        <ComboBoxItem Content="英语" Tag="en"/>
-                        <ComboBoxItem Content="日语" Tag="ja"/>
-                        <ComboBoxItem Content="韩语" Tag="ko"/>
                     </ComboBox>
                 </Grid>
-                <TextBlock Text="当前固定使用 OneOCR；输出固定为简体中文；这里选择的是 OCR 源语言，不是目标语言。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,-8,0,14"/>
+                <TextBlock Text="当前固定使用 OneOCR 自动识别；输出固定为简体中文。当前 OneOCR 本地接口不支持强制指定 EN/JA/KO。" Foreground="#8FA19A" TextWrapping="Wrap" Margin="0,-8,0,14"/>
 
                 <TextBlock Text="翻译" FontWeight="SemiBold" Margin="0,0,0,6"/>
                 <ComboBox x:Name="ProviderCombo" SelectionChanged="ProviderCombo_SelectionChanged" Margin="0,0,0,10">
-                    <ComboBoxItem Content="Local Rules"/>
                     <ComboBoxItem Content="DeepSeek"/>
                     <ComboBoxItem Content="OpenAI Compatible"/>
                 </ComboBox>

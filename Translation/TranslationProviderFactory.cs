@@ -8,8 +8,6 @@ public static class TranslationProviderFactory
     {
         return settings.TranslationProvider switch
         {
-            "Local" => new LocalTranslationProvider(glossary),
-            "Local Rules" => new LocalTranslationProvider(glossary),
             "DeepSeek" => new OpenAICompatibleTranslationProvider(settings, glossary),
             "OpenAI Compatible" => new OpenAICompatibleTranslationProvider(settings, glossary),
             _ => new OpenAICompatibleTranslationProvider(settings, glossary)

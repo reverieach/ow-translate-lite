@@ -5,9 +5,8 @@ Lightweight Overwatch 2 real-time OCR translation overlay for Chinese players.
 ## Scope
 
 - Screen-region OCR for OW chat/subtitle areas.
-- OCR engine: OneOCR.
+- OCR engine: local OneOCR automatic recognition.
 - Translation providers: DeepSeek and OpenAI-compatible chat completions API.
-- `Local Rules` is kept only as a beta/offline smoke-test mode, not as the product translation path.
 - OW-specific filtering: translates player chat lines and ignores Chinese system/UI hints.
 - OW glossary: heroes, abilities, maps, modes, common English/Japanese/Korean aliases, and Chinese community slang.
 - Transparent topmost overlay with optional click-through.
@@ -29,9 +28,8 @@ Publish beta packages only when preparing a tester build:
 ## First Test
 
 1. Run the executable.
-2. For translation-quality tests, use `DeepSeek`, set API URL to `https://api.deepseek.com`, click `获取模型`, and select `deepseek-v4-flash`.
-3. For no-network smoke tests only, use provider `Local Rules`.
-4. Open Notepad and type OW chat-like lines:
+2. Use `DeepSeek`, set API URL to `https://api.deepseek.com`, click `获取模型`, and select `deepseek-v4-flash`.
+3. Open Notepad and type OW chat-like lines:
 
 ```text
 [TEAM] PlayerOne: group up
@@ -39,9 +37,9 @@ Publish beta packages only when preparing a tester build:
 [MATCH] genji99: nano blade soon
 ```
 
-5. Select the Notepad text region.
-6. Click Start.
-7. Confirm that only player messages appear in the overlay.
+4. Select the Notepad text region.
+5. Click Start.
+6. Confirm that only player messages appear in the overlay.
 
 ## Reply Helper
 

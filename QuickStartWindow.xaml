@@ -62,7 +62,7 @@
 
                     <TextBlock Text="6. 开始测试" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
                     <TextBlock Text="所有配置都会自动保存并立即应用，确认 API、模型、OCR 源语言、聊天区域和翻译框位置后，点击“开始”。暂停会停止识别并隐藏翻译框，但不会清空历史；只有“清空”按钮会清空主日志和翻译框历史。"/>
-                    <TextBlock Text="如果出现重复，优先检查是否框选过大；韩语场景优先把源语言固定为“韩语”。如果漏字，稍微扩大聊天框选区域。"/>
+                    <TextBlock Text="如果出现重复，优先检查是否框选过大；如果漏字，稍微扩大聊天框选区域。当前 OneOCR 自动识别，不支持强制指定源语言。"/>
                 </StackPanel>
             </ScrollViewer>
         </Border>

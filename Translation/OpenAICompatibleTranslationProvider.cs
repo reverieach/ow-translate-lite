@@ -10,16 +10,14 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
 {
     private readonly AppSettings _settings;
     private readonly OwGlossaryService _glossary;
-    private readonly HttpClient _client;
+    private readonly TimeSpan _timeout;
+    private static readonly HttpClient SharedClient = new();
 
     public OpenAICompatibleTranslationProvider(AppSettings settings, OwGlossaryService glossary)
     {
         _settings = settings;
         _glossary = glossary;
-        _client = new HttpClient
-        {
-            Timeout = TimeSpan.FromSeconds(Math.Clamp(settings.RequestTimeoutSeconds, 5, 90))
-        };
+        _timeout = TimeSpan.FromSeconds(Math.Clamp(settings.RequestTimeoutSeconds, 5, 90));
     }
 
     public string Name => _settings.TranslationProvider;
@@ -39,14 +37,8 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
             throw new InvalidOperationException("需要配置 API Key");
         }
 
-        using HttpRequestMessage request = new(HttpMethod.Post, BuildChatCompletionsUri(_settings.ApiUrl));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
-
-        object payload = new
-        {
-            model = string.IsNullOrWhiteSpace(_settings.Model) ? "deepseek-v4-flash" : _settings.Model,
-            response_format = new { type = "json_object" },
-            messages = new object[]
+        string responseText = await SendChatCompletionsAsync(includeResponseFormat => CreatePayload(
+            new object[]
             {
                 new
                 {
@@ -64,16 +56,8 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
                         text = chineseText.Trim()
                     })
                 }
-            }
-        };
-
-        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        using HttpResponseMessage response = await _client.SendAsync(request, cancellationToken);
-        string responseText = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException(BuildHttpErrorMessage(response, responseText));
-        }
+            },
+            includeResponseFormat), cancellationToken);
 
         string translated = ExtractOutgoingTranslation(responseText);
         translated = CleanupModelText(translated);
@@ -92,14 +76,8 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
             return lines.Select(line => new TranslationResult(line, "需要配置 API Key")).ToList();
         }
 
-        using HttpRequestMessage request = new(HttpMethod.Post, BuildChatCompletionsUri(_settings.ApiUrl));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
-
-        object payload = new
-        {
-            model = string.IsNullOrWhiteSpace(_settings.Model) ? "deepseek-v4-flash" : _settings.Model,
-            response_format = new { type = "json_object" },
-            messages = new object[]
+        string responseText = await SendChatCompletionsAsync(includeResponseFormat => CreatePayload(
+            new object[]
             {
                 new
                 {
@@ -128,13 +106,8 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
                         }).ToArray()
                     })
                 }
-            }
-        };
-
-        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
-        using HttpResponseMessage response = await _client.SendAsync(request, cancellationToken);
-        string responseText = await response.Content.ReadAsStringAsync(cancellationToken);
-        response.EnsureSuccessStatusCode();
+            },
+            includeResponseFormat), cancellationToken);
 
         Dictionary<string, string> translations = ExtractTranslations(responseText);
         return lines.Select((line, index) =>
@@ -154,17 +127,18 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
             return Array.Empty<string>();
         }
 
-        using HttpClient client = new()
-        {
-            Timeout = TimeSpan.FromSeconds(Math.Clamp(settings.RequestTimeoutSeconds, 5, 90))
-        };
         using HttpRequestMessage request = new(HttpMethod.Get, BuildModelsUri(settings.ApiUrl));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
 
-        using HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
+        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(settings.RequestTimeoutSeconds, 5, 90)));
+        using HttpResponseMessage response = await SharedClient.SendAsync(request, timeoutCts.Token);
         string responseText = await response.Content.ReadAsStringAsync(cancellationToken);
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(BuildHttpErrorMessage(response, responseText));
+        }
 
         using JsonDocument document = JsonDocument.Parse(responseText);
         if (!document.RootElement.TryGetProperty("data", out JsonElement data) || data.ValueKind != JsonValueKind.Array)
@@ -202,6 +176,70 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
         }
 
         return new Uri($"{absolute.TrimEnd('/')}/models");
+    }
+
+    private Dictionary<string, object?> CreatePayload(object[] messages, bool includeResponseFormat)
+    {
+        Dictionary<string, object?> payload = new()
+        {
+            ["model"] = string.IsNullOrWhiteSpace(_settings.Model) ? "deepseek-v4-flash" : _settings.Model,
+            ["messages"] = messages
+        };
+
+        if (includeResponseFormat)
+        {
+            payload["response_format"] = new { type = "json_object" };
+        }
+
+        return payload;
+    }
+
+    private async Task<string> SendChatCompletionsAsync(
+        Func<bool, object> payloadFactory,
+        CancellationToken cancellationToken)
+    {
+        ApiResponse first = await SendChatPayloadAsync(payloadFactory(true), cancellationToken);
+        if (!first.IsSuccessStatusCode && IsResponseFormatUnsupported(first.StatusCode, first.Body))
+        {
+            ApiResponse retry = await SendChatPayloadAsync(payloadFactory(false), cancellationToken);
+            if (!retry.IsSuccessStatusCode)
+            {
+                throw new InvalidOperationException(BuildHttpErrorMessage(retry.StatusCode, retry.ReasonPhrase, retry.Body));
+            }
+
+            return retry.Body;
+        }
+
+        if (!first.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(BuildHttpErrorMessage(first.StatusCode, first.ReasonPhrase, first.Body));
+        }
+
+        return first.Body;
+    }
+
+    private async Task<ApiResponse> SendChatPayloadAsync(object payload, CancellationToken cancellationToken)
+    {
+        using HttpRequestMessage request = new(HttpMethod.Post, BuildChatCompletionsUri(_settings.ApiUrl));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(_timeout);
+        using HttpResponseMessage response = await SharedClient.SendAsync(request, timeoutCts.Token);
+        string responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+        return new ApiResponse((int)response.StatusCode, response.ReasonPhrase ?? "", responseText, response.IsSuccessStatusCode);
+    }
+
+    private static bool IsResponseFormatUnsupported(int statusCode, string responseText)
+    {
+        if (statusCode is not (400 or 422))
+        {
+            return false;
+        }
+
+        return responseText.Contains("response_format", StringComparison.OrdinalIgnoreCase) ||
+               responseText.Contains("json_object", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Dictionary<string, string> ExtractTranslations(string responseText)
@@ -331,6 +369,9 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
     }
 
     private static string BuildHttpErrorMessage(HttpResponseMessage response, string responseText)
+        => BuildHttpErrorMessage((int)response.StatusCode, response.ReasonPhrase ?? "", responseText);
+
+    private static string BuildHttpErrorMessage(int statusCode, string reasonPhrase, string responseText)
     {
         string body = responseText.Trim().Replace('\r', ' ').Replace('\n', ' ');
         if (body.Length > 160)
@@ -339,8 +380,8 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
         }
 
         return string.IsNullOrWhiteSpace(body)
-            ? $"API 请求失败：{(int)response.StatusCode} {response.ReasonPhrase}"
-            : $"API 请求失败：{(int)response.StatusCode} {response.ReasonPhrase}，{body}";
+            ? $"API 请求失败：{statusCode} {reasonPhrase}"
+            : $"API 请求失败：{statusCode} {reasonPhrase}，{body}";
     }
 
     private static string CleanupModelText(string text)
@@ -352,4 +393,6 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
             .Trim();
         return result.Length > 120 ? result[..120] : result;
     }
+
+    private sealed record ApiResponse(int StatusCode, string ReasonPhrase, string Body, bool IsSuccessStatusCode);
 }
