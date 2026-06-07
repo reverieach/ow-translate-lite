@@ -6,6 +6,81 @@
         Background="Transparent" Topmost="True" ShowInTaskbar="False"
         WindowStartupLocation="Manual"
         Width="520" Height="180">
+    <Window.Resources>
+        <SolidColorBrush x:Key="ReplyComboForegroundBrush" Color="#F4F7F5"/>
+        <SolidColorBrush x:Key="ReplyComboAccentBrush" Color="#78D995"/>
+
+        <Style x:Key="ReplyComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
+            <Setter Property="Foreground" Value="#F4F7F5"/>
+            <Setter Property="Background" Value="#141719"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#26332B"/>
+                    <Setter Property="Foreground" Value="#B8F3C7"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="ReplyComboBoxStyle" TargetType="{x:Type ComboBox}">
+            <Setter Property="Foreground" Value="#F4F7F5"/>
+            <Setter Property="BorderBrush" Value="#4478D995"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,0"/>
+            <Setter Property="ItemContainerStyle" Value="{StaticResource ReplyComboBoxItemStyle}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ComboBox}">
+                        <Grid>
+                            <ToggleButton x:Name="ToggleButton"
+                                          Focusable="False"
+                                          IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                        <Border x:Name="Chrome"
+                                                Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}">
+                                            <Grid>
+                                                <ContentPresenter Margin="6,0,16,0"
+                                                                  VerticalAlignment="Center"
+                                                                  HorizontalAlignment="Center"
+                                                                  RecognizesAccessKey="True"
+                                                                  Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"/>
+                                                <Path Data="M 0 0 L 4 4 L 8 0 Z"
+                                                      Fill="{StaticResource ReplyComboAccentBrush}"
+                                                      HorizontalAlignment="Right"
+                                                      VerticalAlignment="Center"
+                                                      Margin="0,0,6,0"/>
+                                            </Grid>
+                                        </Border>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <Popup x:Name="PART_Popup"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   Placement="Bottom"
+                                   PopupAnimation="Fade">
+                                <Border Background="#E0101214"
+                                        BorderBrush="#6678D995"
+                                        BorderThickness="1"
+                                        MinWidth="{TemplateBinding ActualWidth}">
+                                    <ScrollViewer MaxHeight="150">
+                                        <ItemsPresenter/>
+                                    </ScrollViewer>
+                                </Border>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
     <Border x:Name="FloatingPanel" BorderBrush="#5578D995" BorderThickness="1" Padding="12">
         <Grid>
             <Grid.RowDefinitions>
@@ -68,15 +143,15 @@
                     BorderThickness="0">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="104"/>
+                        <ColumnDefinition Width="78"/>
                         <ColumnDefinition Width="8"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <ComboBox x:Name="ReplyTargetCombo"
                               Grid.Column="0"
-                              BorderThickness="0"
+                              Style="{StaticResource ReplyComboBoxStyle}"
+                              BorderThickness="1"
                               Background="#1B2024"
-                              Foreground="#101214"
                               VerticalContentAlignment="Center">
                         <ComboBoxItem Content="自动" Tag="auto"/>
                         <ComboBoxItem Content="英语" Tag="en"/>

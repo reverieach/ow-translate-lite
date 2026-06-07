@@ -357,8 +357,8 @@ public partial class OverlayWindow : Window
         if (ReplyTargetCombo.SelectedItem is ComboBoxItem selected)
         {
             selected.Content = _replyTargetLanguage == "auto"
-                ? $"自动->{GetLanguageLabel(_effectiveReplyLanguage)}"
-                : GetLanguageLabel(_replyTargetLanguage);
+                ? $"自->{GetShortLanguageLabel(_effectiveReplyLanguage)}"
+                : GetShortLanguageLabel(_replyTargetLanguage);
         }
 
         foreach (object item in ReplyTargetCombo.Items)
@@ -368,13 +368,13 @@ public partial class OverlayWindow : Window
                 continue;
             }
 
-            string tag = NormalizeReplyLanguage(comboItem.Tag?.ToString() ?? "auto");
-            if (tag != _replyTargetLanguage)
-            {
-                comboItem.Content = tag == "auto" ? "自动" : GetLanguageLabel(tag);
+                string tag = NormalizeReplyLanguage(comboItem.Tag?.ToString() ?? "auto");
+                if (tag != _replyTargetLanguage)
+                {
+                comboItem.Content = tag == "auto" ? "自动" : GetShortLanguageLabel(tag);
+                }
             }
         }
-    }
 
     private static string NormalizeReplyLanguage(string language)
     {
@@ -388,6 +388,16 @@ public partial class OverlayWindow : Window
             "ja" => "日语",
             "ko" => "韩语",
             _ => "英语"
+        };
+    }
+
+    private static string GetShortLanguageLabel(string language)
+    {
+        return language switch
+        {
+            "ja" => "日",
+            "ko" => "韩",
+            _ => "英"
         };
     }
 
