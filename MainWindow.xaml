@@ -151,6 +151,19 @@
                     <Button x:Name="StopButton" Content="暂停" Background="#EBCB6B" BorderBrush="#EBCB6B" Click="Stop_Click"/>
                     <Button Content="保存设置" Background="#9BB7F0" BorderBrush="#9BB7F0" Click="SaveSettings_Click"/>
                 </WrapPanel>
+
+                <Border Background="#161A1E" BorderBrush="#2F3940" BorderThickness="1" Padding="12" Margin="0,16,0,0">
+                    <StackPanel>
+                        <TextBlock Text="Beta 测试" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                        <WrapPanel>
+                            <Button Content="打开数据目录" Margin="0,0,8,8" Click="OpenDataDirectory_Click"/>
+                            <Button Content="打开日志" Margin="0,0,8,8" Click="OpenRuntimeLog_Click"/>
+                            <Button Content="导出诊断" Margin="0,0,8,8" Click="ExportDiagnostics_Click"/>
+                            <Button Content="清除本机数据" Margin="0,0,8,8" Background="#F29F9F" BorderBrush="#F29F9F" Click="ClearUserData_Click"/>
+                        </WrapPanel>
+                        <TextBlock Text="测试版用于排查问题；导出的诊断会脱敏 API Key。" Foreground="#8FA19A" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
             </ScrollViewer>
 

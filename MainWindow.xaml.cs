@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.IO;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using OwTranslateLite.Core;
@@ -36,6 +38,7 @@ public partial class MainWindow : Window
     private bool _overlayHiddenByIdle;
     private bool _isRunning;
     private bool _isLoadingSettings;
+    private bool _isApplyingOverlaySettings;
     private readonly List<TranslationRecord> _records = [];
 
     public MainWindow()
@@ -106,7 +109,7 @@ public partial class MainWindow : Window
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
         SaveOverlayBounds(settings);
         _config.Save();
-        _overlay?.ApplySettings(settings);
+        ApplyOverlaySettings();
     }
 
     private void SelectCombo(WpfComboBox combo, string value)
@@ -345,9 +348,86 @@ public partial class MainWindow : Window
         ClearOverlayRecords();
     }
 
+    private void OpenDataDirectory_Click(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(ConfigStore.AppDirectory);
+        OpenShellPath(ConfigStore.AppDirectory);
+        AddLog($"已打开数据目录：{ConfigStore.AppDirectory}");
+    }
+
+    private void OpenRuntimeLog_Click(object sender, RoutedEventArgs e)
+    {
+        Directory.CreateDirectory(ConfigStore.AppDirectory);
+        if (!File.Exists(ConfigStore.RuntimeLogPath))
+        {
+            File.WriteAllText(
+                ConfigStore.RuntimeLogPath,
+                "OW Translator Lite runtime log\n",
+                new UTF8Encoding(false));
+        }
+
+        OpenShellPath(ConfigStore.RuntimeLogPath);
+        AddLog($"已打开日志：{ConfigStore.RuntimeLogPath}");
+    }
+
+    private void ExportDiagnostics_Click(object sender, RoutedEventArgs e)
+    {
+        SaveSettingsFromUi();
+        Directory.CreateDirectory(ConfigStore.AppDirectory);
+
+        string diagnosticsPath = Path.Combine(
+            ConfigStore.AppDirectory,
+            $"diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt");
+
+        File.WriteAllText(
+            diagnosticsPath,
+            BuildDiagnosticsReport(),
+            new UTF8Encoding(false));
+
+        OpenShellPath(ConfigStore.AppDirectory);
+        AddLog($"已导出诊断：{diagnosticsPath}");
+    }
+
+    private void ClearUserData_Click(object sender, RoutedEventArgs e)
+    {
+        MessageBoxResult result = System.Windows.MessageBox.Show(
+            "这会暂停识别，清空本机设置、API Key、日志、诊断文件和 overlay 历史，并恢复默认配置。\n\n继续清除？",
+            "清除本机数据",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        StopLoop(hideOverlay: true, clearOverlay: true);
+        _overlay?.Hide();
+        LogList.Items.Clear();
+        _config.ResetUserData();
+        _coordinator = new TranslationCoordinator(_config.Settings, _glossary);
+        InvalidateOcrEngine();
+        _activeRunSettingsKey = null;
+        _pausedAt = null;
+        _lastTranslationCompletedAt = null;
+        _overlayHiddenByIdle = false;
+        LoadSettingsToUi();
+        ApplyRunningState();
+        AddLog("本机数据已清除，已恢复默认配置。");
+    }
+
     private void SaveOverlayBounds(AppSettings settings)
     {
         if (_overlay is null)
+        {
+            return;
+        }
+
+        if (!IsFinite(_overlay.Left) ||
+            !IsFinite(_overlay.Top) ||
+            !IsFinite(_overlay.Width) ||
+            !IsFinite(_overlay.Height))
         {
             return;
         }
@@ -645,16 +725,47 @@ public partial class MainWindow : Window
     {
         if (_overlay is not null)
         {
-            _overlay.ApplySettings(_config.Settings);
+            ApplyOverlaySettings();
             return;
         }
 
         _overlay = new OverlayWindow();
-        _overlay.ApplySettings(_config.Settings);
+        _overlay.LocationChanged += Overlay_BoundsChanged;
+        _overlay.SizeChanged += Overlay_BoundsChanged;
+        ApplyOverlaySettings();
         if (_config.Settings.CaptureRegion is CaptureRegion region)
         {
             _overlay.MoveNear(region.ToRect());
         }
+    }
+
+    private void ApplyOverlaySettings()
+    {
+        if (_overlay is null)
+        {
+            return;
+        }
+
+        _isApplyingOverlaySettings = true;
+        try
+        {
+            _overlay.ApplySettings(_config.Settings);
+        }
+        finally
+        {
+            _isApplyingOverlaySettings = false;
+        }
+    }
+
+    private void Overlay_BoundsChanged(object? sender, EventArgs e)
+    {
+        if (_isApplyingOverlaySettings || _overlay is null)
+        {
+            return;
+        }
+
+        SaveOverlayBounds(_config.Settings);
+        _config.Save();
     }
 
     private void UpdateRegionText()
@@ -667,6 +778,7 @@ public partial class MainWindow : Window
     private void AddLog(string message)
     {
         string line = $"[{DateTime.Now:HH:mm:ss}] {message}";
+        AppendRuntimeLog(line);
         LogList.Items.Add(line);
         while (LogList.Items.Count > MaxLogRecords)
         {
@@ -674,6 +786,128 @@ public partial class MainWindow : Window
         }
 
         LogList.ScrollIntoView(line);
+    }
+
+    private string BuildDiagnosticsReport()
+    {
+        AppSettings settings = _config.Settings;
+        StringBuilder builder = new();
+        builder.AppendLine("OW Translator Lite Beta Diagnostics");
+        builder.AppendLine($"GeneratedAt: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        builder.AppendLine($"Version: {typeof(MainWindow).Assembly.GetName().Version}");
+        builder.AppendLine($"OS: {Environment.OSVersion}");
+        builder.AppendLine($".NET: {Environment.Version}");
+        builder.AppendLine();
+        builder.AppendLine("== Paths ==");
+        builder.AppendLine($"AppDirectory: {ConfigStore.AppDirectory}");
+        builder.AppendLine($"SettingsPath: {ConfigStore.SettingsPath}");
+        builder.AppendLine($"RuntimeLogPath: {ConfigStore.RuntimeLogPath}");
+        builder.AppendLine($"CrashLogPath: {ConfigStore.CrashLogPath}");
+        builder.AppendLine();
+        builder.AppendLine("== Settings ==");
+        builder.AppendLine($"OcrEngine: {settings.OcrEngine}");
+        builder.AppendLine($"OcrLanguage: {settings.OcrLanguage}");
+        builder.AppendLine($"TranslationProvider: {settings.TranslationProvider}");
+        builder.AppendLine($"ApiUrl: {settings.ApiUrl}");
+        builder.AppendLine($"ApiKeyConfigured: {!string.IsNullOrWhiteSpace(settings.ApiKey)}");
+        builder.AppendLine("ApiKey: [redacted]");
+        builder.AppendLine($"Model: {settings.Model}");
+        builder.AppendLine($"CaptureIntervalMs: {settings.CaptureIntervalMs}");
+        builder.AppendLine($"RequestTimeoutSeconds: {settings.RequestTimeoutSeconds}");
+        builder.AppendLine($"OverlayOpacity: {settings.OverlayOpacity:0.###}");
+        builder.AppendLine($"OverlayFontSize: {settings.OverlayFontSize:0.###}");
+        builder.AppendLine($"OverlayClickThrough: {settings.OverlayClickThrough}");
+        builder.AppendLine($"OverlayBounds: {FormatBounds(settings)}");
+        builder.AppendLine($"CaptureRegion: {FormatRegion(settings.CaptureRegion)}");
+        builder.AppendLine();
+        builder.AppendLine("== Current UI Log ==");
+        foreach (object item in LogList.Items.Cast<object>().TakeLast(80))
+        {
+            builder.AppendLine(item.ToString());
+        }
+
+        AppendFileTail(builder, ConfigStore.RuntimeLogPath, "Runtime Log Tail", 120);
+        AppendFileTail(builder, ConfigStore.CrashLogPath, "Crash Log Tail", 120);
+
+        return builder.ToString();
+    }
+
+    private static string FormatBounds(AppSettings settings)
+    {
+        if (settings.OverlayLeft is not double left ||
+            settings.OverlayTop is not double top ||
+            settings.OverlayWidth is not double width ||
+            settings.OverlayHeight is not double height)
+        {
+            return "not saved";
+        }
+
+        return $"{left:0.##},{top:0.##} {width:0.##}x{height:0.##}";
+    }
+
+    private static string FormatRegion(CaptureRegion? region) =>
+        region is null
+            ? "not selected"
+            : $"{region.Left:0.##},{region.Top:0.##} {region.Width:0.##}x{region.Height:0.##}";
+
+    private static void AppendFileTail(StringBuilder builder, string path, string title, int maxLines)
+    {
+        builder.AppendLine();
+        builder.AppendLine($"== {title} ==");
+        if (!File.Exists(path))
+        {
+            builder.AppendLine("not found");
+            return;
+        }
+
+        try
+        {
+            foreach (string line in File.ReadLines(path, Encoding.UTF8).TakeLast(maxLines))
+            {
+                builder.AppendLine(line);
+            }
+        }
+        catch (Exception ex)
+        {
+            builder.AppendLine($"unavailable: {ex.Message}");
+        }
+    }
+
+    private static void AppendRuntimeLog(string line)
+    {
+        try
+        {
+            Directory.CreateDirectory(ConfigStore.AppDirectory);
+            File.AppendAllText(
+                ConfigStore.RuntimeLogPath,
+                line + Environment.NewLine,
+                new UTF8Encoding(false));
+        }
+        catch
+        {
+            // Runtime logging is diagnostic-only and must not interrupt translation.
+        }
+    }
+
+    private static void OpenShellPath(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{path}\"",
+                UseShellExecute = true
+            });
+        }
     }
 
     private void EnsureDefaultModelOptions()
@@ -820,4 +1054,7 @@ public partial class MainWindow : Window
 
         return commonPrefix >= Math.Max(8, (int)(limit * 0.75));
     }
+
+    private static bool IsFinite(double value) =>
+        !double.IsNaN(value) && !double.IsInfinity(value);
 }

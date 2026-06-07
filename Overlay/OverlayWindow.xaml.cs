@@ -57,12 +57,22 @@ public partial class OverlayWindow : Window
 
     private void ApplySavedBounds(AppSettings settings)
     {
-        if (settings.OverlayLeft is double left && settings.OverlayTop is double top)
+        if (settings.OverlayLeft is double left &&
+            settings.OverlayTop is double top &&
+            IsFinite(left) &&
+            IsFinite(top))
         {
             Left = left;
             Top = top;
-            Width = Math.Max(260, settings.OverlayWidth ?? Width);
-            Height = Math.Max(100, settings.OverlayHeight ?? Height);
+            if (settings.OverlayWidth is double width && IsFinite(width))
+            {
+                Width = Math.Max(260, width);
+            }
+
+            if (settings.OverlayHeight is double height && IsFinite(height))
+            {
+                Height = Math.Max(100, height);
+            }
         }
     }
 
@@ -130,4 +140,7 @@ public partial class OverlayWindow : Window
 
     [DllImport("user32.dll")]
     private static extern int SetWindowLong(nint hWnd, int nIndex, int dwNewLong);
+
+    private static bool IsFinite(double value) =>
+        !double.IsNaN(value) && !double.IsInfinity(value);
 }
