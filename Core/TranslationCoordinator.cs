@@ -94,6 +94,7 @@ public sealed class TranslationCoordinator
         System.Windows.Rect captureRegion = _settings.CaptureRegion.ToRect();
         using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
         IReadOnlyList<OcrTextLine> ocrLines = await ocrEngine.RecognizeAsync(bitmap, _settings.OcrLanguage, cancellationToken);
+        ocrLines = OcrTextPostProcessor.Process(ocrLines);
         IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(ocrLines);
         LastVisibleChatLines = chatLines;
         LogDedupe($"ocr-frame ocrLines={ocrLines.Count} chatLines={chatLines.Count} previous={_previousVisibleMessages.Count} visible={FormatLines(chatLines)}");

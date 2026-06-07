@@ -66,7 +66,8 @@ foreach (string imagePath in imagePaths)
         IReadOnlyList<OcrTextLine> lines = await engine.RecognizeAsync(source, "auto", mode, CancellationToken.None);
         stopwatch.Stop();
 
-        IReadOnlyList<ParsedChatLine> parsedLines = parser.Parse(lines);
+        IReadOnlyList<OcrTextLine> processedLines = OcrTextPostProcessor.Process(lines);
+        IReadOnlyList<ParsedChatLine> parsedLines = parser.Parse(processedLines);
         IReadOnlyList<string> effectiveLines = lines
             .Select(line => line.Text.Trim())
             .Where(IsEffectiveLine)
@@ -76,6 +77,7 @@ foreach (string imagePath in imagePaths)
             mode,
             stopwatch.Elapsed,
             lines.Select(line => line.Text.Trim()).Where(static text => text.Length > 0).ToArray(),
+            processedLines.Select(line => line.Text.Trim()).Where(static text => text.Length > 0).ToArray(),
             parsedLines.Select(static line => $"[{line.Speaker}]: {line.SourceText}").ToArray(),
             effectiveLines,
             previewPath));
@@ -136,13 +138,13 @@ static string BuildReport(string inputDir, string outputDir, IReadOnlyList<LabRe
     builder.AppendLine($"- Generated: `{DateTime.Now:yyyy-MM-dd HH:mm:ss}`");
     builder.AppendLine($"- Suggested overall mode: `{GetSuggestedMode(results)}`");
     builder.AppendLine();
-    builder.AppendLine("| Image | Mode | Time | OCR Lines | Parsed Chat | Effective Lines | Score | Preview |");
-    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | --- |");
+    builder.AppendLine("| Image | Mode | Time | OCR Lines | Processed Lines | Parsed Chat | Effective Lines | Score | Preview |");
+    builder.AppendLine("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |");
 
     foreach (LabResult result in results)
     {
         string preview = Path.GetRelativePath(outputDir, result.PreviewPath).Replace('\\', '/');
-        builder.AppendLine($"| {EscapePipe(Path.GetFileName(result.ImagePath))} | `{result.Mode}` | {result.Elapsed.TotalMilliseconds:0} ms | {result.RawLines.Count} | {result.ParsedChatLines.Count} | {result.EffectiveLines.Count} | {GetScore(result):0.0} | [{Path.GetFileName(result.PreviewPath)}]({preview}) |");
+        builder.AppendLine($"| {EscapePipe(Path.GetFileName(result.ImagePath))} | `{result.Mode}` | {result.Elapsed.TotalMilliseconds:0} ms | {result.RawLines.Count} | {result.ProcessedLines.Count} | {result.ParsedChatLines.Count} | {result.EffectiveLines.Count} | {GetScore(result):0.0} | [{Path.GetFileName(result.PreviewPath)}]({preview}) |");
     }
 
     foreach (IGrouping<string, LabResult> imageGroup in results.GroupBy(static result => result.ImagePath))
@@ -158,6 +160,7 @@ static string BuildReport(string inputDir, string outputDir, IReadOnlyList<LabRe
             builder.AppendLine();
             builder.AppendLine($"- Time: `{result.Elapsed.TotalMilliseconds:0} ms`");
             builder.AppendLine($"- OCR lines: `{result.RawLines.Count}`");
+            builder.AppendLine($"- Processed lines: `{result.ProcessedLines.Count}`");
             builder.AppendLine($"- Parsed chat lines: `{result.ParsedChatLines.Count}`");
             builder.AppendLine($"- Effective lines: `{result.EffectiveLines.Count}`");
             if (result.ParsedChatLines.Count > 0)
@@ -174,6 +177,18 @@ static string BuildReport(string inputDir, string outputDir, IReadOnlyList<LabRe
                 builder.AppendLine("```");
             }
 
+            builder.AppendLine();
+            builder.AppendLine("Processed OCR:");
+            builder.AppendLine();
+            builder.AppendLine("```text");
+            foreach (string line in result.ProcessedLines)
+            {
+                builder.AppendLine(line);
+            }
+
+            builder.AppendLine("```");
+            builder.AppendLine();
+            builder.AppendLine("Raw OCR:");
             builder.AppendLine();
             builder.AppendLine("```text");
             foreach (string line in result.RawLines)
@@ -240,6 +255,7 @@ internal sealed record LabResult(
     OcrPreprocessingMode Mode,
     TimeSpan Elapsed,
     IReadOnlyList<string> RawLines,
+    IReadOnlyList<string> ProcessedLines,
     IReadOnlyList<string> ParsedChatLines,
     IReadOnlyList<string> EffectiveLines,
     string PreviewPath);
