@@ -1,8 +1,11 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Interop;
 using OwTranslateLite.Core;
 using OwTranslateLite.Ocr;
 using OwTranslateLite.Overlay;
@@ -22,12 +25,20 @@ public partial class MainWindow : Window
     private const int MaxLogRecords = 200;
     private const int MaxTranslationQueueItems = 30;
     private const int MaxTranslationBatchSize = 4;
+    private const int ReplyHotkeyId = 0x4F57;
+    private const int WmHotkey = 0x0312;
+    private const uint ModControl = 0x0002;
+    private const uint ModShift = 0x0004;
+    private const uint VkReturn = 0x0D;
 
     private readonly ConfigStore _config = new();
+    private readonly RecentChatLanguageTracker _recentChatLanguages = new();
     private OwGlossaryService _glossary = null!;
     private TranslationCoordinator _coordinator = null!;
     private OverlayWindow? _overlay;
     private CancellationTokenSource? _loopCts;
+    private CancellationTokenSource? _replyTranslationCts;
+    private HwndSource? _hotkeySource;
     private IOcrEngine? _currentOcrEngine;
     private readonly Queue<ParsedChatLine> _translationQueue = [];
     private readonly object _translationQueueLock = new();
@@ -42,6 +53,8 @@ public partial class MainWindow : Window
     private bool _overlayVisibleForHistoryPeek;
     private bool _wasChatVisibleLastTick;
     private bool _isRunning;
+    private bool _isReplyModeActive;
+    private bool _replyHotkeyRegistered;
     private bool _isLoadingSettings;
     private bool _isApplyingOverlaySettings;
     private bool _isAdjustingTranslationFrame;
@@ -66,12 +79,16 @@ public partial class MainWindow : Window
         ApplyRunningState();
         ApplyFrameAdjustmentState();
         AddLog("就绪。正式测试建议使用 DeepSeek API；Local Rules 仅用于离线规则冒烟测试。");
+        RegisterReplyHotkey();
         ShowQuickStartIfNeeded();
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         EndFrameAdjustment(log: false);
+        ExitReplyMode();
+        UnregisterReplyHotkey();
+        _replyTranslationCts?.Cancel();
         StopLoop(hideOverlay: false, clearOverlay: false);
         SaveSettingsFromUi();
         _overlay?.Close();
@@ -84,6 +101,7 @@ public partial class MainWindow : Window
         {
             AppSettings settings = _config.Settings;
             NormalizeOcrSettings(settings);
+            NormalizeReplySettings(settings);
             SelectCombo(OcrEngineCombo, settings.OcrEngine);
             SelectCombo(OcrLanguageCombo, settings.OcrLanguage);
             SelectCombo(ProviderCombo, settings.TranslationProvider);
@@ -552,6 +570,7 @@ public partial class MainWindow : Window
             {
                 IOcrEngine engine = GetOcrEngine();
                 IReadOnlyList<ParsedChatLine> newLines = await _coordinator.DetectNewLinesAsync(engine, cancellationToken);
+                _recentChatLanguages.Record(_coordinator.LastVisibleChatLines);
                 bool hasVisibleChat = _coordinator.HasVisibleChat;
                 bool chatJustBecameVisible = hasVisibleChat && !_wasChatVisibleLastTick;
                 _wasChatVisibleLastTick = hasVisibleChat;
@@ -572,6 +591,7 @@ public partial class MainWindow : Window
                 Dispatcher.Invoke(() =>
                 {
                     MaybeHideOverlayAfterIdle();
+                    RefreshReplyTargetDisplay();
                     LatencyText.Text = $"{stopwatch.ElapsedMilliseconds} ms";
                 });
             }
@@ -817,6 +837,11 @@ public partial class MainWindow : Window
 
     private void StopLoop(bool hideOverlay, bool clearOverlay)
     {
+        if (hideOverlay)
+        {
+            ExitReplyMode();
+        }
+
         _loopCts?.Cancel();
         _loopCts?.Dispose();
         _loopCts = null;
@@ -852,6 +877,9 @@ public partial class MainWindow : Window
         _overlay = new OverlayWindow();
         _overlay.LocationChanged += Overlay_BoundsChanged;
         _overlay.SizeChanged += Overlay_BoundsChanged;
+        _overlay.ReplySubmitted += Overlay_ReplySubmitted;
+        _overlay.ReplyTargetLanguageChanged += Overlay_ReplyTargetLanguageChanged;
+        _overlay.ReplyModeExited += Overlay_ReplyModeExited;
         ApplyOverlaySettings();
         if (_config.Settings.CaptureRegion is CaptureRegion region)
         {
@@ -933,6 +961,7 @@ public partial class MainWindow : Window
         builder.AppendLine($"ApiKeyConfigured: {!string.IsNullOrWhiteSpace(settings.ApiKey)}");
         builder.AppendLine("ApiKey: [redacted]");
         builder.AppendLine($"Model: {settings.Model}");
+        builder.AppendLine($"ReplyTargetLanguage: {settings.ReplyTargetLanguage}");
         builder.AppendLine($"CaptureIntervalMs: {settings.CaptureIntervalMs}");
         builder.AppendLine($"RequestTimeoutSeconds: {settings.RequestTimeoutSeconds}");
         builder.AppendLine($"OverlayOpacity: {settings.OverlayOpacity:0.###}");
@@ -1031,6 +1060,189 @@ public partial class MainWindow : Window
         {
             // Dedupe debug logging is optional and must not affect OCR or translation.
         }
+    }
+
+    private async void Overlay_ReplySubmitted(object? sender, ReplySubmittedEventArgs e)
+    {
+        if (_replyTranslationCts is not null)
+        {
+            _overlay?.SetReplyStatus("上一句还在翻译");
+            return;
+        }
+
+        string targetLanguage = e.SelectedLanguage == "auto" ? ResolveReplyTargetLanguage() : e.SelectedLanguage;
+        _overlay?.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, targetLanguage);
+        _overlay?.SetReplyStatus("翻译中...");
+        AddLog($"回话翻译：{GetLanguageLabel(targetLanguage)} <= {e.SourceText}");
+
+        _replyTranslationCts = new CancellationTokenSource();
+        try
+        {
+            OpenAICompatibleTranslationProvider provider = new(_config.Settings, _glossary);
+            string translated = await provider.TranslateOutgoingReplyAsync(
+                e.SourceText,
+                targetLanguage,
+                _replyTranslationCts.Token);
+
+            if (string.IsNullOrWhiteSpace(translated))
+            {
+                _overlay?.SetReplyStatus("翻译为空");
+                return;
+            }
+
+            System.Windows.Clipboard.SetText(translated);
+            _overlay?.ClearReplyInput();
+            _overlay?.SetReplyStatus($"已复制：{LimitReplyStatus(translated)}");
+            AddLog($"回话已复制：{translated}");
+        }
+        catch (OperationCanceledException)
+        {
+            _overlay?.SetReplyStatus("已取消");
+        }
+        catch (Exception ex)
+        {
+            _overlay?.SetReplyStatus($"失败：{LimitReplyStatus(ex.Message)}");
+            AddLog($"回话翻译失败：{ex.Message}");
+        }
+        finally
+        {
+            _replyTranslationCts?.Dispose();
+            _replyTranslationCts = null;
+            _overlay?.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
+        }
+    }
+
+    private void Overlay_ReplyTargetLanguageChanged(object? sender, string language)
+    {
+        _config.Settings.ReplyTargetLanguage = NormalizeReplyLanguage(language);
+        _config.Save();
+        RefreshReplyTargetDisplay();
+    }
+
+    private void Overlay_ReplyModeExited(object? sender, EventArgs e)
+    {
+        ExitReplyMode();
+    }
+
+    private void EnterReplyMode()
+    {
+        EnsureOverlay();
+        ApplyOverlaySettings();
+        _isReplyModeActive = true;
+        _historyPeekOverlayUntil = null;
+        _overlayVisibleForHistoryPeek = false;
+        _overlayHiddenByIdle = false;
+        _overlay?.EnterReplyMode(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
+        AddLog("已进入回话模式，输入中文后按 Enter 翻译并复制。");
+    }
+
+    private void ExitReplyMode()
+    {
+        if (!_isReplyModeActive)
+        {
+            return;
+        }
+
+        _isReplyModeActive = false;
+        _replyTranslationCts?.Cancel();
+        _overlay?.ExitReplyMode();
+        AddLog("已退出回话模式。");
+    }
+
+    private void ToggleReplyMode()
+    {
+        if (_isReplyModeActive)
+        {
+            ExitReplyMode();
+            return;
+        }
+
+        EnterReplyMode();
+    }
+
+    private void RefreshReplyTargetDisplay()
+    {
+        if (!_isReplyModeActive || _overlay is null)
+        {
+            return;
+        }
+
+        _overlay.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
+    }
+
+    private string ResolveReplyTargetLanguage()
+    {
+        string selected = NormalizeReplyLanguage(_config.Settings.ReplyTargetLanguage);
+        return selected == "auto"
+            ? _recentChatLanguages.DetectOrDefault("en")
+            : selected;
+    }
+
+    private static string NormalizeReplyLanguage(string language)
+    {
+        return language is "en" or "ja" or "ko" ? language : "auto";
+    }
+
+    private static void NormalizeReplySettings(AppSettings settings)
+    {
+        settings.ReplyTargetLanguage = NormalizeReplyLanguage(settings.ReplyTargetLanguage);
+    }
+
+    private static string GetLanguageLabel(string language)
+    {
+        return language switch
+        {
+            "ja" => "日语",
+            "ko" => "韩语",
+            _ => "英语"
+        };
+    }
+
+    private static string LimitReplyStatus(string value)
+    {
+        string trimmed = value.Replace('\r', ' ').Replace('\n', ' ').Trim();
+        return trimmed.Length <= 36 ? trimmed : trimmed[..36] + "...";
+    }
+
+    private void RegisterReplyHotkey()
+    {
+        nint handle = new WindowInteropHelper(this).Handle;
+        if (handle == 0)
+        {
+            AddLog("回话热键注册失败：窗口句柄不可用。");
+            return;
+        }
+
+        _hotkeySource = HwndSource.FromHwnd(handle);
+        _hotkeySource?.AddHook(WndProc);
+        _replyHotkeyRegistered = RegisterHotKey(handle, ReplyHotkeyId, ModControl | ModShift, VkReturn);
+        AddLog(_replyHotkeyRegistered
+            ? "回话热键已启用：Ctrl+Shift+Enter。"
+            : "回话热键注册失败，可能已被其他程序占用。");
+    }
+
+    private void UnregisterReplyHotkey()
+    {
+        nint handle = new WindowInteropHelper(this).Handle;
+        if (_replyHotkeyRegistered && handle != 0)
+        {
+            _ = UnregisterHotKey(handle, ReplyHotkeyId);
+        }
+
+        _replyHotkeyRegistered = false;
+        _hotkeySource?.RemoveHook(WndProc);
+        _hotkeySource = null;
+    }
+
+    private nint WndProc(nint hwnd, int msg, nint wParam, nint lParam, ref bool handled)
+    {
+        if (msg == WmHotkey && wParam.ToInt32() == ReplyHotkeyId)
+        {
+            handled = true;
+            ToggleReplyMode();
+        }
+
+        return 0;
     }
 
     private static void OpenShellPath(string path)
@@ -1230,4 +1442,10 @@ public partial class MainWindow : Window
 
     private static bool IsFinite(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RegisterHotKey(nint hWnd, int id, uint fsModifiers, uint vk);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnregisterHotKey(nint hWnd, int id);
 }

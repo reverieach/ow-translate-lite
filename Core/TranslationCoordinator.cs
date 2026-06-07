@@ -27,6 +27,7 @@ public sealed class TranslationCoordinator
 
     public bool ChatCycleJustReset { get; private set; }
     public bool HasVisibleChat { get; private set; }
+    public IReadOnlyList<ParsedChatLine> LastVisibleChatLines { get; private set; } = Array.Empty<ParsedChatLine>();
 
     public TranslationCoordinator(AppSettings settings, OwGlossaryService glossary, Action<string>? dedupeLog = null)
     {
@@ -94,6 +95,7 @@ public sealed class TranslationCoordinator
         using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
         IReadOnlyList<OcrTextLine> ocrLines = await ocrEngine.RecognizeAsync(bitmap, _settings.OcrLanguage, cancellationToken);
         IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(ocrLines);
+        LastVisibleChatLines = chatLines;
         LogDedupe($"ocr-frame ocrLines={ocrLines.Count} chatLines={chatLines.Count} previous={_previousVisibleMessages.Count} visible={FormatLines(chatLines)}");
         if (chatLines.Count == 0)
         {

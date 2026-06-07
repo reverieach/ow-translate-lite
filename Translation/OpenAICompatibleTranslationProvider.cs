@@ -24,6 +24,62 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
 
     public string Name => _settings.TranslationProvider;
 
+    public async Task<string> TranslateOutgoingReplyAsync(
+        string chineseText,
+        string targetLanguage,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(chineseText))
+        {
+            return "";
+        }
+
+        if (string.IsNullOrWhiteSpace(_settings.ApiUrl) || string.IsNullOrWhiteSpace(_settings.ApiKey))
+        {
+            throw new InvalidOperationException("需要配置 API Key");
+        }
+
+        using HttpRequestMessage request = new(HttpMethod.Post, BuildChatCompletionsUri(_settings.ApiUrl));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey);
+
+        object payload = new
+        {
+            model = string.IsNullOrWhiteSpace(_settings.Model) ? "deepseek-v4-flash" : _settings.Model,
+            response_format = new { type = "json_object" },
+            messages = new object[]
+            {
+                new
+                {
+                    role = "system",
+                    content = "你是守望先锋2对局聊天回话翻译器。把玩家输入的简体中文翻译成指定目标语言。只输出有效JSON，不要Markdown，不要解释。译文必须短、自然、像游戏玩家会打出的聊天短句。不要加引号。英雄、技能、地图、战术俚语使用目标语言玩家常用叫法。"
+                },
+                new
+                {
+                    role = "user",
+                    content = JsonSerializer.Serialize(new
+                    {
+                        target_language = GetTargetLanguageName(targetLanguage),
+                        style = "短句，竞技语境，自然玩家口吻，不解释",
+                        output_schema = new { text = "translated reply" },
+                        text = chineseText.Trim()
+                    })
+                }
+            }
+        };
+
+        request.Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using HttpResponseMessage response = await _client.SendAsync(request, cancellationToken);
+        string responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(BuildHttpErrorMessage(response, responseText));
+        }
+
+        string translated = ExtractOutgoingTranslation(responseText);
+        translated = CleanupModelText(translated);
+        return translated;
+    }
+
     public async Task<IReadOnlyList<TranslationResult>> TranslateAsync(IReadOnlyList<ParsedChatLine> lines, CancellationToken cancellationToken)
     {
         if (lines.Count == 0)
@@ -231,6 +287,60 @@ public sealed class OpenAICompatibleTranslationProvider : ITranslationProvider
 
             index++;
         }
+    }
+
+    private static string ExtractOutgoingTranslation(string responseText)
+    {
+        using JsonDocument document = JsonDocument.Parse(responseText);
+        string content = document.RootElement.GetProperty("choices")[0].GetProperty("message").GetProperty("content").GetString() ?? "";
+        content = content.Trim().Trim('`').Replace("```json", "", StringComparison.OrdinalIgnoreCase).Replace("```", "").Trim();
+
+        try
+        {
+            using JsonDocument inner = JsonDocument.Parse(content);
+            JsonElement root = inner.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                if (root.TryGetProperty("text", out JsonElement text) && text.ValueKind == JsonValueKind.String)
+                {
+                    return text.GetString() ?? "";
+                }
+
+                if (root.TryGetProperty("translation", out JsonElement translation) && translation.ValueKind == JsonValueKind.String)
+                {
+                    return translation.GetString() ?? "";
+                }
+            }
+        }
+        catch (JsonException)
+        {
+            return content;
+        }
+
+        return content;
+    }
+
+    private static string GetTargetLanguageName(string targetLanguage)
+    {
+        return targetLanguage switch
+        {
+            "ja" => "Japanese",
+            "ko" => "Korean",
+            _ => "English"
+        };
+    }
+
+    private static string BuildHttpErrorMessage(HttpResponseMessage response, string responseText)
+    {
+        string body = responseText.Trim().Replace('\r', ' ').Replace('\n', ' ');
+        if (body.Length > 160)
+        {
+            body = body[..160] + "...";
+        }
+
+        return string.IsNullOrWhiteSpace(body)
+            ? $"API 请求失败：{(int)response.StatusCode} {response.ReasonPhrase}"
+            : $"API 请求失败：{(int)response.StatusCode} {response.ReasonPhrase}，{body}";
     }
 
     private static string CleanupModelText(string text)

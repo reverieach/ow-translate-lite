@@ -43,6 +43,13 @@ Publish beta packages only when preparing a tester build:
 6. Click Start.
 7. Confirm that only player messages appear in the overlay.
 
+## Reply Helper
+
+- Press `Ctrl+Shift+Enter` to open the overlay reply input.
+- Type Chinese and press Enter; the app translates it to the selected target language and copies the result.
+- The target language dropdown supports Auto, English, Japanese, and Korean. Auto uses recent OCR chat language and falls back to English.
+- Press Esc in the reply input to leave reply mode and restore click-through behavior.
+
 ## Git
 
 This folder is its own local Git repository. Keep the previous fork-based experiment in `E:\rstgametranslation\ow-rst` separate.
