@@ -60,7 +60,7 @@
 
     { "category": "ability", "zh_cn": "纳米激素", "terms": ["nano boost", "nano", "ナノブースト", "나노", "나노 강화제", "纳米"] },
     { "category": "ability", "zh_cn": "龙刃", "terms": ["dragonblade", "blade", "ブレード", "블레이드", "용검", "拔刀", "刀"] },
-    { "category": "ability", "zh_cn": "铃", "terms": ["suzu", "protection suzu", "鈴", "스즈", "정화의 방울", "净化铃", "铃"] },
+    { "category": "ability", "zh_cn": "铃铛", "terms": ["suzu", "protection suzu", "鈴", "스즈", "정화의 방울", "净化铃", "铃"] },
     { "category": "ability", "zh_cn": "狐", "terms": ["kitsune rush", "kitsune", "fox", "狐", "여우길", "狐走り"] },
     { "category": "ability", "zh_cn": "睡眠针", "terms": ["sleep dart", "sleep", "sleeping", "眠り", "수면총", "睡"] },
     { "category": "ability", "zh_cn": "禁疗瓶", "terms": ["biotic grenade", "nade", "anti", "anti nade", "purple", "阻害瓶", "수류탄", "禁疗"] },
