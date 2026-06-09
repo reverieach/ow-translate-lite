@@ -21,27 +21,17 @@ public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
 
     public async Task<IReadOnlyList<OcrTextLine>> RecognizeAsync(Bitmap bitmap, string languageCode, CancellationToken cancellationToken)
     {
-        return await RecognizeAsync(bitmap, languageCode, OcrImagePreprocessor.DefaultMode, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<OcrTextLine>> RecognizeAsync(
-        Bitmap bitmap,
-        string languageCode,
-        OcrPreprocessingMode preprocessingMode,
-        CancellationToken cancellationToken)
-    {
-        using Bitmap prepared = OcrImagePreprocessor.Prepare(bitmap, preprocessingMode);
+        using Bitmap prepared = OcrImagePreprocessor.Prepare(bitmap);
         return await RecognizeWithPrepare(bitmap, languageCode, prepared, cancellationToken);
     }
 
     public async Task<IReadOnlyList<OcrTextLine>> RecognizeAsync(
         Bitmap bitmap,
         string languageCode,
-        OcrPreprocessingMode preprocessingMode,
         CancellationToken cancellationToken,
         Func<Bitmap, Bitmap>? customPrepare)
     {
-        using Bitmap prepared = customPrepare is not null ? customPrepare(bitmap) : OcrImagePreprocessor.Prepare(bitmap, preprocessingMode);
+        using Bitmap prepared = customPrepare is not null ? customPrepare(bitmap) : OcrImagePreprocessor.Prepare(bitmap);
         return await RecognizeWithPrepare(bitmap, languageCode, prepared, cancellationToken);
     }
 

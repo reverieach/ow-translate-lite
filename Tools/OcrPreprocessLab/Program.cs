@@ -119,7 +119,7 @@ foreach (string imagePath in imagePaths)
         IReadOnlyList<OcrTextLine> lines;
         try
         {
-            lines = await engine.RecognizeAsync(source, "auto", OcrPreprocessingMode.ColorPreserving, CancellationToken.None, variant.Prepare);
+            lines = await engine.RecognizeAsync(source, "auto", CancellationToken.None, variant.Prepare);
         }
         catch (Exception ex)
         {
@@ -191,34 +191,27 @@ static List<PreprocessVariant> BuildBasicVariants()
 {
     return
     [
-        new("ColorPreserving", OcrImagePreprocessor.PrepareColorPreserving),
-        new("OwChatCyanMask", bitmap => OcrImagePreprocessor.Prepare(bitmap, OcrPreprocessingMode.OwChatCyanMask)),
-        new("OwChatMultiColorMask", bitmap => OcrImagePreprocessor.Prepare(bitmap, OcrPreprocessingMode.OwChatMultiColorMask)),
-        new("OwChatMultiColorMaskThickened", bitmap => OcrImagePreprocessor.Prepare(bitmap, OcrPreprocessingMode.OwChatMultiColorMaskThickened)),
+        new("ColorPreserving", OcrImagePreprocessor.Prepare),
     ];
 }
 
 static List<PreprocessVariant> BuildAllVariants()
 {
-    List<PreprocessVariant> list = BuildBasicVariants();
-    list.AddRange(
+    return
     [
+        new("ColorPreserving", OcrImagePreprocessor.Prepare),
         new("GrayscaleBaseline", LabPreprocess.GrayscaleBaseline),
         new("GrayscaleUpscaled", LabPreprocess.GrayscaleUpscaled),
         new("GrayscaleOtsu", LabPreprocess.GrayscaleOtsu),
         new("ColorPreserving_NoSharpen", LabPreprocess.ColorPreserving_NoSharpen),
-        new("MultiColorMask_NoSharpen", LabPreprocess.MultiColorMask_NoSharpen),
-        new("CyanMask_NoSharpen", LabPreprocess.CyanMask_NoSharpen),
-    ]);
-    return list;
+    ];
 }
 
 static List<PreprocessVariant> BuildSweepVariants()
 {
     List<PreprocessVariant> list =
     [
-        new("ColorPreserving", OcrImagePreprocessor.PrepareColorPreserving),
-        new("OwChatMultiColorMask", bitmap => OcrImagePreprocessor.Prepare(bitmap, OcrPreprocessingMode.OwChatMultiColorMask)),
+        new("ColorPreserving", OcrImagePreprocessor.Prepare),
     ];
 
     // Contrast sweep: 1.0, 1.18, 1.4
@@ -233,7 +226,7 @@ static List<PreprocessVariant> BuildSweepVariants()
     {
         if (Math.Abs(gamma - 0.96f) < 0.01f)
         {
-            continue; // Already tested as ColorPreserving
+            continue;
         }
 
         list.Add(new($"Sweep_Gamma_{gamma:0.##}_NoMask",
@@ -241,7 +234,7 @@ static List<PreprocessVariant> BuildSweepVariants()
     }
 
     // Scale factor sweep: 1.5x, 2.5x, 3x (comparing to default 2x)
-    foreach (int scale in new[] { 3, 4, 5 }) // map to 1.5x, 2.5x, 3x via division
+    foreach (int scale in new[] { 3, 4, 5 })
     {
         float factor = scale / 2.0f;
         if (Math.Abs(factor - 2.0f) < 0.01f)
@@ -646,26 +639,6 @@ internal static class LabPreprocess
     }
 
     /// <summary>
-    /// MultiColorMask pipeline without the final sharpen step.
-    /// </summary>
-    public static Bitmap MultiColorMask_NoSharpen(Bitmap source)
-    {
-        using Bitmap scaled = ScaleColorPreservingInline(source);
-        Bitmap masked = CreateOwChatMaskInline(scaled, includeGreenAndOrange: true);
-        return masked;
-    }
-
-    /// <summary>
-    /// CyanMask pipeline without the final sharpen step.
-    /// </summary>
-    public static Bitmap CyanMask_NoSharpen(Bitmap source)
-    {
-        using Bitmap scaled = ScaleColorPreservingInline(source);
-        Bitmap masked = CreateOwChatMaskInline(scaled, includeGreenAndOrange: false);
-        return masked;
-    }
-
-    /// <summary>
     /// Parameterized scale+enhance for contrast/gamma sweep.
     /// </summary>
     public static Bitmap SweepScaleEnhance(Bitmap source, float contrast, float gamma, bool sharpen)
@@ -765,55 +738,6 @@ internal static class LabPreprocess
         return scaled;
     }
 
-    private static Bitmap CreateOwChatMaskInline(Bitmap source, bool includeGreenAndOrange)
-    {
-        Bitmap output = new(source.Width, source.Height, PixelFormat.Format32bppArgb);
-        Rectangle rect = new(0, 0, source.Width, source.Height);
-        BitmapData sourceData = source.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
-        BitmapData outputData = output.LockBits(rect, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb);
-        try
-        {
-            int sourceStride = Math.Abs(sourceData.Stride);
-            int outputStride = Math.Abs(outputData.Stride);
-            int sourceBytes = sourceStride * source.Height;
-            int outputBytes = outputStride * output.Height;
-            byte[] sourceBuffer = new byte[sourceBytes];
-            byte[] outputBuffer = new byte[outputBytes];
-            Marshal.Copy(sourceData.Scan0, sourceBuffer, 0, sourceBytes);
-
-            for (int y = 0; y < source.Height; y++)
-            {
-                int sourceRow = y * sourceStride;
-                int outputRow = y * outputStride;
-                for (int x = 0; x < source.Width; x++)
-                {
-                    int sourceIndex = sourceRow + x * 4;
-                    byte b = sourceBuffer[sourceIndex];
-                    byte g = sourceBuffer[sourceIndex + 1];
-                    byte r = sourceBuffer[sourceIndex + 2];
-                    bool isText = IsOwChatCyanInline(r, g, b) ||
-                                  (includeGreenAndOrange && (IsOwChatGreenInline(r, g, b) || IsOwChatOrangeInline(r, g, b)));
-
-                    int outputIndex = outputRow + x * 4;
-                    byte value = isText ? GetForegroundMaskValueInline(r, g, b) : (byte)0;
-                    outputBuffer[outputIndex] = value;
-                    outputBuffer[outputIndex + 1] = value;
-                    outputBuffer[outputIndex + 2] = value;
-                    outputBuffer[outputIndex + 3] = 255;
-                }
-            }
-
-            Marshal.Copy(outputBuffer, 0, outputData.Scan0, outputBytes);
-        }
-        finally
-        {
-            source.UnlockBits(sourceData);
-            output.UnlockBits(outputData);
-        }
-
-        return output;
-    }
-
     private static void ApplyLightSharpenInline(Bitmap bitmap)
     {
         Rectangle rect = new(0, 0, bitmap.Width, bitmap.Height);
@@ -855,12 +779,6 @@ internal static class LabPreprocess
         }
     }
 
-    private static byte GetForegroundMaskValueInline(byte r, byte g, byte b)
-    {
-        int value = Math.Max(Math.Max(r, g), b) + 35;
-        return ClampToByteInline(value);
-    }
-
     private static byte ClampToByteInline(int value)
     {
         if (value <= 0)
@@ -869,34 +787,6 @@ internal static class LabPreprocess
         }
 
         return value >= 255 ? (byte)255 : (byte)value;
-    }
-
-    private static bool IsOwChatCyanInline(byte r, byte g, byte b)
-    {
-        return b >= 118 &&
-               g >= 105 &&
-               r <= 140 &&
-               b >= r + 42 &&
-               g >= r + 26;
-    }
-
-    private static bool IsOwChatGreenInline(byte r, byte g, byte b)
-    {
-        return g >= 122 &&
-               r <= 150 &&
-               b <= 170 &&
-               g >= r + 28 &&
-               g >= b + 12;
-    }
-
-    private static bool IsOwChatOrangeInline(byte r, byte g, byte b)
-    {
-        return r >= 145 &&
-               g >= 74 &&
-               g <= 210 &&
-               b <= 150 &&
-               r >= b + 52 &&
-               r + 20 >= g;
     }
 
     private static int ComputeOtsuThreshold(int[] histogram, int totalPixels)
