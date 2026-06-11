@@ -12,6 +12,7 @@ Lightweight Overwatch 2 real-time OCR translation overlay for Chinese players.
 - Transparent topmost overlay with optional click-through.
 - Reply helper: optional overlay input bar translates Chinese replies to English/Japanese/Korean and copies to clipboard.
 - User API Key is stored through Windows DPAPI as `apiKeyProtected`.
+- Optional beta diagnostics include dedupe logging and local raw screenshot capture for OCR preprocessing experiments.
 
 ## Build
 
@@ -56,10 +57,11 @@ Publish beta packages only when preparing a tester build:
 
 ```powershell
 & "E:\rstgametranslation\.dotnet\dotnet.exe" run --project Tools\OcrPreprocessLab\OcrPreprocessLab.csproj -c Release
+& "E:\rstgametranslation\.dotnet\dotnet.exe" run --project Tools\OcrPreprocessLab\OcrPreprocessLab.csproj -c Release -- --mode sweep
 & "E:\rstgametranslation\.dotnet\dotnet.exe" run --project Tools\GlossaryValidator\GlossaryValidator.csproj -c Release
 ```
 
-`OcrPreprocessLab` compares OW chat preprocessing modes against local screenshots. `GlossaryValidator` checks the OW glossary for JSON errors, empty targets, duplicate aliases, and short alias risks.
+`OcrPreprocessLab` compares the production `ColorPreserving` pipeline against lab-only grayscale/no-sharpen/sweep variants. By default it reads `ow-screenshot\` and also `captured-screenshots\` when present, then writes previews and `report.md` under `Docs\ocr-lab-output\`. `GlossaryValidator` checks the OW glossary for JSON errors, empty targets, duplicate aliases, and short alias risks.
 
 ## Git
 

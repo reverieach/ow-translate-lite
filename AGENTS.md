@@ -31,6 +31,9 @@
 - `Translation/`：OpenAI-compatible API 请求、模型列表获取。
 - `Resources/OwGlossary.zh-CN.json`：OW 术语表。
 - `Docs/`：架构、测试说明、历史决策。
+- `Tools/OcrPreprocessLab/`：本地 OCR 预处理对比实验工具。
+- `Tools/GlossaryValidator/`：词库 JSON、重复 alias、短 alias 风险检查工具。
+- `captured-screenshots/`：本地 OCR 样本采集输出，已在 `.gitignore`，不要提交。
 - `dist/`：发布产物，已在 `.gitignore`，不要提交。
 - `app/`：本地 build 输出，已在 `.gitignore`，不要提交。
 
@@ -68,6 +71,9 @@
 - 系统提示通常没有 `[player]：` 格式，应和玩家消息分开处理。
 - OW 聊天会自动消失，但打开聊天窗口可看到历史；overlay 历史不因 OCR 暂时无字而清空。
 - 当前 OneOCR 使用自动识别；项目没有可调用的 EN/JA/KO 强制识别接口。
+- 当前主线 OCR 预处理是单一路径：保留颜色、2x 放大、轻微对比/亮度/gamma 增强、轻锐化。
+- 2026-06-09 对约 91 张实战截图采样与 lab 对比后，已移除 `OcrPreprocessingMode` 和青色/多色 mask 主线路径；不要在没有新实验报告支撑时把 mask variant 加回主流程。
+- `Tools/OcrPreprocessLab` 仍可比较 `ColorPreserving`、灰度 baseline、无锐化和参数 sweep；实验报告输出到 `Docs/ocr-lab-output/`，不要提交。
 
 ### 去重策略
 
@@ -95,6 +101,7 @@
 - 打开日志。
 - 导出诊断。
 - 清除本机数据。
+- 翻译时保存原始截图（本地 OCR 样本采集）。
 
 这些入口只为小范围测试排错服务，完整版可以移除。导出诊断必须脱敏 API Key，只能记录是否已配置。
 
@@ -104,6 +111,7 @@
 - `runtime.log`：程序内运行日志。
 - `crash.log`：未捕获异常日志。
 - `diagnostics-*.txt`：用户点击导出诊断生成的脱敏诊断文件。
+- `captured-screenshots/`：开发环境中启用“翻译时保存原始截图”后生成的原始截图样本；当前路径通过向上查找 `OwTranslateLite.csproj` 定位仓库根目录，发布包若要收集测试者样本，需要先把保存位置改到用户数据目录或可配置路径。
 
 ## API 与模型
 
@@ -143,21 +151,22 @@ E:\rstgametranslation\.dotnet\dotnet.exe publish OwTranslateLite.csproj -c Relea
 - 每组完成的改动可做本地 commit，作为恢复点。
 - 不要 push、pull、加 remote，除非用户明确要求。
 - `dist/`、`app/`、`obj/` 不应提交。
+- `captured-screenshots/`、`ow-screenshot/`、`Docs/ocr-lab-output/` 是本地 OCR 实验数据，不应提交。
 - 文档和词库变更也要纳入 git 管理；完成后确认 `git status --short` 干净。
 
 ## 常见风险
 
 - 新机器选择语言或模型闪退：优先看 `crash.log` 和 overlay 坐标是否为 NaN/Infinity。
 - 翻译重复：优先检查 OCR 是否把同一行切块、玩家名是否被识别变化、锚点匹配是否失效。
-- 韩语/日语识别差：优先检查框选区域、图像预处理和截图样本，不要承诺 OneOCR 可强制指定识别语言。
+- 韩语/日语识别差：优先检查框选区域、当前 `ColorPreserving` 预处理和截图样本，不要承诺 OneOCR 可强制指定识别语言，也不要按单个样例硬编码普通聊天纠错。
 - 翻译不动：检查 API URL、API Key、模型、请求超时、网络延迟和队列是否积压。
 - Overlay 位置不保存：检查 `OverlayLeft/Top/Width/Height` 是否写入 `settings.json`，以及应用设置时是否触发了错误保存。
 
 ## 后续优先级
 
-1. 收集 beta2 诊断日志，优先解决测试者机器上的闪退和无响应。
-2. 继续增强 OCR 切块合并和有序锚点去重。
+1. 收集 beta 诊断日志和 `captured-screenshots/` 样本，优先解决测试者机器上的闪退、无响应、重复/漏翻和 OCR 识别不稳。
+2. 继续增强 OCR 切块合并和有序锚点去重，优先使用通用相似度与实测样本验证。
 3. 继续验证 API Key DPAPI 迁移和异常恢复路径。
 4. 维护英语、日语、韩语 OW 术语和常见聊天表达。
 5. 暂不引入大体积本地翻译模型；竞技实时体验优先使用 DeepSeek/API + 术语表 + 缓存。
-6. beta 稳定后裁掉测试入口，整理发布包结构，做正式版本说明。
+6. beta 稳定后裁掉或隐藏测试入口，整理发布包结构，做正式版本说明。
