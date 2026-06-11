@@ -21,13 +21,24 @@ public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
 
     public async Task<IReadOnlyList<OcrTextLine>> RecognizeAsync(Bitmap bitmap, string languageCode, CancellationToken cancellationToken)
     {
-        return await RecognizeAsync(bitmap, languageCode, OcrImagePreprocessor.DefaultMode, cancellationToken);
+        using Bitmap prepared = OcrImagePreprocessor.Prepare(bitmap);
+        return await RecognizeWithPrepare(bitmap, languageCode, prepared, cancellationToken);
     }
 
     public async Task<IReadOnlyList<OcrTextLine>> RecognizeAsync(
         Bitmap bitmap,
         string languageCode,
-        OcrPreprocessingMode preprocessingMode,
+        CancellationToken cancellationToken,
+        Func<Bitmap, Bitmap>? customPrepare)
+    {
+        using Bitmap prepared = customPrepare is not null ? customPrepare(bitmap) : OcrImagePreprocessor.Prepare(bitmap);
+        return await RecognizeWithPrepare(bitmap, languageCode, prepared, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<OcrTextLine>> RecognizeWithPrepare(
+        Bitmap bitmap,
+        string languageCode,
+        Bitmap prepared,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -36,8 +47,6 @@ public sealed partial class OneOcrEngine : IOcrEngine, IDisposable
         {
             return Array.Empty<OcrTextLine>();
         }
-
-        using Bitmap prepared = OcrImagePreprocessor.Prepare(bitmap, preprocessingMode);
         BitmapData data = prepared.LockBits(new Rectangle(0, 0, prepared.Width, prepared.Height), ImageLockMode.ReadOnly, prepared.PixelFormat);
         long instance = 0;
         try

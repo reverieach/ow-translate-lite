@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -117,6 +118,7 @@ public partial class MainWindow : Window
             ReplyHotkeyCheck.IsChecked = settings.EnableReplyHotkey;
             SelectCombo(ReplyHotkeyCombo, settings.ReplyHotkey);
             DedupeDebugCheck.IsChecked = settings.EnableDedupeDebugLog;
+            SaveScreenshotsCheck.IsChecked = settings.SaveScreenshotsOnTranslation;
             FirstRunPanel.Visibility = settings.FirstRun ? Visibility.Visible : Visibility.Collapsed;
             UpdateProviderPreset();
             UpdateRegionText();
@@ -143,9 +145,30 @@ public partial class MainWindow : Window
         settings.EnableReplyHotkey = ReplyHotkeyCheck.IsChecked == true;
         settings.ReplyHotkey = GetComboText(ReplyHotkeyCombo);
         settings.EnableDedupeDebugLog = DedupeDebugCheck.IsChecked == true;
+        settings.SaveScreenshotsOnTranslation = SaveScreenshotsCheck.IsChecked == true;
         SaveOverlayBounds(settings);
         _config.Save();
         ApplyOverlaySettings();
+    }
+
+    private void ApplyScreenshotSaveDirectory()
+    {
+        if (_config.Settings.SaveScreenshotsOnTranslation)
+        {
+            string repoRoot = AppContext.BaseDirectory;
+            while (repoRoot is not null && !File.Exists(Path.Combine(repoRoot, "OwTranslateLite.csproj")))
+            {
+                repoRoot = Path.GetDirectoryName(repoRoot)!;
+            }
+
+            _coordinator.ScreenshotSaveDirectory = repoRoot is not null
+                ? Path.Combine(repoRoot, "captured-screenshots")
+                : null;
+        }
+        else
+        {
+            _coordinator.ScreenshotSaveDirectory = null;
+        }
     }
 
     private TranslationCoordinator CreateCoordinator() =>
@@ -264,6 +287,7 @@ public partial class MainWindow : Window
         }
 
         SaveSettingsFromUi();
+        ApplyScreenshotSaveDirectory();
     }
 
     private void OcrSettings_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -382,6 +406,7 @@ public partial class MainWindow : Window
     {
         EndFrameAdjustment(log: true);
         SaveSettingsFromUi();
+        ApplyScreenshotSaveDirectory();
         if (_config.Settings.CaptureRegion is null)
         {
             AddLog("请先选择聊天区域。");

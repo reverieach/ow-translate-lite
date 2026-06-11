@@ -190,7 +190,12 @@
                                   Margin="0,2,0,6"
                                   Checked="BetaDebugSettings_Changed"
                                   Unchecked="BetaDebugSettings_Changed"/>
-                        <TextBlock Text="测试版用于排查问题；导出的诊断会脱敏 API Key。去重调试日志默认关闭，测试重复问题时再开启。" Foreground="#8FA19A" TextWrapping="Wrap"/>
+                        <CheckBox x:Name="SaveScreenshotsCheck"
+                                  Content="翻译时保存原始截图（收集OCR测试样本）"
+                                  Margin="0,2,0,6"
+                                  Checked="BetaDebugSettings_Changed"
+                                  Unchecked="BetaDebugSettings_Changed"/>
+                        <TextBlock Text="测试版用于排查问题；导出的诊断会脱敏 API Key。去重调试日志默认关闭，测试重复问题时再开启。保存截图用于收集 OCR 预处理测试样本。" Foreground="#8FA19A" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Border>
             </StackPanel>

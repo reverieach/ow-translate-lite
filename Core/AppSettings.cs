@@ -28,6 +28,7 @@ public sealed class AppSettings
     public bool OverlayClickThrough { get; set; } = true;
     public bool ShowReplyInputBar { get; set; } = true;
     public bool EnableDedupeDebugLog { get; set; }
+    public bool SaveScreenshotsOnTranslation { get; set; }
     public double? OverlayLeft { get; set; } = 42;
     public double? OverlayTop { get; set; } = 151;
     public double? OverlayWidth { get; set; } = 454;

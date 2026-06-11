@@ -1,3 +1,5 @@
+using System.Drawing.Imaging;
+using System.IO;
 using OwTranslateLite.Ocr;
 using OwTranslateLite.Translation;
 
@@ -25,6 +27,7 @@ public sealed class TranslationCoordinator
     private const double AnchorScoreThreshold = 0.82;
     private const double DuplicateTextScoreThreshold = 0.76;
 
+    public string? ScreenshotSaveDirectory { get; set; }
     public bool ChatCycleJustReset { get; private set; }
     public bool HasVisibleChat { get; private set; }
     public IReadOnlyList<ParsedChatLine> LastVisibleChatLines { get; private set; } = Array.Empty<ParsedChatLine>();
@@ -133,6 +136,20 @@ public sealed class TranslationCoordinator
         }
 
         LogDedupe($"new-lines count={newLines.Count}");
+        if (newLines.Count > 0 && ScreenshotSaveDirectory is not null)
+        {
+            try
+            {
+                Directory.CreateDirectory(ScreenshotSaveDirectory);
+                string file = Path.Combine(ScreenshotSaveDirectory, $"cap_{DateTime.Now:yyyyMMdd-HHmmss-fff}.png");
+                bitmap.Save(file, ImageFormat.Png);
+            }
+            catch
+            {
+                // Best-effort: don't disrupt the OCR pipeline if saving fails.
+            }
+        }
+
         return newLines;
     }
 
