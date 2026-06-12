@@ -1,0 +1,21 @@
+{
+  "caseId": "case04-ocr-character-jitter",
+  "expectedMessages": [
+    {
+      "speaker": "Reverieach",
+      "sourceText": "트레이서 뒤에 있어 조심해"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "키리코 스즈 빠졌어"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "라마트라 궁 조심해"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}

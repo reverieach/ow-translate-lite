@@ -1,0 +1,25 @@
+{
+  "caseId": "case05-korean-spacing-jitter",
+  "expectedMessages": [
+    {
+      "speaker": "Reverieach",
+      "sourceText": "우리 같이 들어가자"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "아나 힐 좀 줘"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "라인 방벽 없어"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "다음 한타 천천히"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}

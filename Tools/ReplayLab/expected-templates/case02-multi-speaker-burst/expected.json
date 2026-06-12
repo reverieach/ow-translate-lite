@@ -1,0 +1,33 @@
+{
+  "caseId": "case02-multi-speaker-burst",
+  "expectedMessages": [
+    {
+      "speaker": "Reverieach",
+      "sourceText": "우리 왼쪽 가자"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "힐 줄게"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "겐지 뒤"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "디바 매트릭스 없어"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "나노 있어"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "용검 준비"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}

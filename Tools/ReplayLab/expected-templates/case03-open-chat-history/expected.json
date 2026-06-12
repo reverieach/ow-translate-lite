@@ -1,0 +1,33 @@
+{
+  "caseId": "case03-open-chat-history",
+  "expectedMessages": [
+    {
+      "speaker": "Reverieach",
+      "sourceText": "안녕하세요"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "오늘 첫 판이에요"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "위도우 조심"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "처음엔 왼쪽으로 가자"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "궁 차면 말해줘"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "같이 들어가자"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}

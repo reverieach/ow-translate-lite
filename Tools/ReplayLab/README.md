@@ -20,6 +20,12 @@ With assertions:
 E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> <expected.json>
 ```
 
+The 3-account golden-case scripts use prewritten expectation templates:
+
+```text
+Tools\ReplayLab\expected-templates\<case-id>\expected.json
+```
+
 Smoke fixture:
 
 ```powershell

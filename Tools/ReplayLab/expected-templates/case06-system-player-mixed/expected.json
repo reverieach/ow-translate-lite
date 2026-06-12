@@ -1,0 +1,25 @@
+{
+  "caseId": "case06-system-player-mixed",
+  "expectedMessages": [
+    {
+      "speaker": "Reverieach",
+      "sourceText": "힐 필요해"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "리퍼 뒤 조심"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "궁극기 있어"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "이번 한타 기다려"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}

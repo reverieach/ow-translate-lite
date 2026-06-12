@@ -1,215 +1,296 @@
-# Replay Case Recording Guide（2026-06-12）
+# Replay Case Recording Guide（3 账号专用版，2026-06-12）
 
-本文档用于录制 Timeline 重构前的 T0 golden cases。目标是让每个 case 都能被
-`Tools/ReplayLab` 离线回放，并人工标注期望消息顺序。
+本文档是 T0 golden cases 的固定录制脚本。你有 3 个测试账号：
 
-## 通用录制步骤
+- 主账号：`Reverieach`
+- 辅助账号 A：`疯狂的鹿`
+- 辅助账号 B：`天剑若叶`
 
-1. 启动 OW Translator Lite，先“选择聊天区域”，框完整包含 OW 左侧聊天框。
-2. 在“Beta 测试”区域选择一个 Case。
-3. 点击“录制 Case”。如果当前未运行，程序会自动开始识别。
-4. 按下面对应 case 的步骤在游戏聊天里制造样本。
-5. 建议每个 case 录制 20-60 秒；完成后再次点击“停止录制”。
-6. 程序会打开会话目录：`captured-screenshots/sessions/<时间-case>/`。
-7. 在会话目录旁创建或复制 `expected.json`，写入本 case 应翻译的玩家消息顺序。
-8. 用 ReplayLab 检查：
+请严格按每个 case 的消息顺序、账号和韩语文本发送。对应的 `expected.json`
+已经预置在 `Tools/ReplayLab/expected-templates/<case-id>/expected.json`，录完后直接用，
+不需要手工标注。
+
+## 通用规则
+
+1. 启动 OW Translator Lite，先“选择聊天区域”，完整框住 OW 左侧聊天文本框。
+2. 三个账号进入同一个可打字环境，推荐自定义房间或训练场组队。
+3. 所有测试消息都发到同一个聊天频道，建议使用队伍/小队聊天；不要混用频道。
+4. 录制前确保聊天区没有大量旧消息干扰；需要“淡化”的 case 按脚本等待。
+5. 每条消息都按文档逐字发送，不要加标点、表情或额外空格。
+6. 每个 case 录完后，点击“停止录制”，程序会打开 session 目录。
+7. 用对应 expected 模板跑 ReplayLab：
 
 ```powershell
-E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> <expected.json>
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\<case-id>\expected.json
 ```
 
-## 标注格式
+ReplayLab 指标目标：
 
-```json
-{
-  "caseId": "case01-korean-short-cold-start",
-  "expectedMessages": [
-    {
-      "speaker": "PLAYER1",
-      "sourceText": "가자"
-    }
-  ],
-  "allowedMissingCount": 0,
-  "allowedDuplicateCount": 0,
-  "allowedOutOfOrderCount": 0,
-  "allowedExtraCount": 0
-}
+```text
+missing=0, duplicates=0, outOfOrder=0, extra=0
 ```
 
-`speaker` 和 `sourceText` 尽量按 ReplayLab `report.md` 中的 accepted/parsed 文本填写，
-不要把玩家名写进 `sourceText`。如果 OCR 把同一句稳定识别成某个错误文本，也按 OCR
-稳定文本标注，后续阶段再用共识和相似度修正。
+如果真实 OCR 把中文账号名稳定识别错，先不要改 expected；把 ReplayLab 生成的
+`trace.json` 和 `report.md` 保留下来。这类样本正好用于后续检查 speaker OCR 抖动。
 
 ## Case 1：韩语短消息/冷启动
 
-目的：覆盖冷启动后第一条短韩语消息，以及短文本判重死区。
+入口选择：`Case 1 韩语短消息/冷启动`
 
-建议样例：
+模板：
 
 ```text
-[PLAYER1]: ㄱㄱ
-[PLAYER1]: 가자
-[PLAYER1]: 힐좀
-[PLAYER1]: ㄴㄴ
+Tools\ReplayLab\expected-templates\case01-korean-short-cold-start\expected.json
 ```
 
-操作：
+目的：覆盖冷启动第一条短韩语消息、日常问候、短文本和常用竞技短句。
 
-1. 暂停程序 5 秒以上，清空聊天区可见消息或等聊天淡出。
-2. 选择 `Case 1 韩语短消息/冷启动`，点击“录制 Case”。
-3. 让测试者连续发送 2-4 条短韩语消息，每条间隔 2-3 秒。
-4. 继续录 10 秒，确保同一消息跨多帧出现。
+录制前：
 
-期望：所有玩家消息按发送顺序各出现一次，零漏翻、零重复、零乱序。
+1. 暂停识别或等待聊天完全淡出 5 秒以上。
+2. 选择 Case 1，点击“录制 Case”。
+
+发送顺序：
+
+```text
+Reverieach: 안녕
+等待 2 秒
+Reverieach: ㄱㄱ
+等待 2 秒
+Reverieach: 힐좀
+等待 2 秒
+Reverieach: 나이스
+```
+
+发送后继续录 10 秒再停止。
+
+期望：4 条都出现一次；其中 `ㄱㄱ`、`힐좀` 是短文本重点样本。
 
 ## Case 2：多人陆续发言
 
-目的：覆盖多人短时间连续发言，暴露旧 tail-2 截断导致的中间消息漏翻。
+入口选择：`Case 2 多人陆续发言`
 
-建议样例：
+模板：
 
 ```text
-[TANK1]: 우리 왼쪽 가자
-[SUP1]: 힐 줄게
-[DPS1]: 겐지 뒤
-[SUP2]: 나노 있어
-[DPS2]: 용검 준비
+Tools\ReplayLab\expected-templates\case02-multi-speaker-burst\expected.json
 ```
 
-操作：
+目的：覆盖 3 个玩家在短时间内连续发言，暴露旧 tail-2 截断导致的中间消息漏翻。
 
-1. 最好找 3 个以上测试账号或队友。
-2. 选择 `Case 2 多人陆续发言`，点击“录制 Case”。
-3. 在 5-8 秒内让不同玩家连续发送至少 5 条消息。
-4. 不要打开聊天历史，录制自然滚动可见区。
+录制前：
 
-期望：所有玩家消息都进入 expected，顺序与游戏内发送顺序一致。
+1. 保持聊天区可见。
+2. 选择 Case 2，点击“录制 Case”。
+
+发送顺序：每条间隔 1 秒左右，尽量在 8 秒内全部发完。
+
+```text
+Reverieach: 우리 왼쪽 가자
+疯狂的鹿: 힐 줄게
+天剑若叶: 겐지 뒤
+Reverieach: 디바 매트릭스 없어
+疯狂的鹿: 나노 있어
+天剑若叶: 용검 준비
+```
+
+发送后继续录 10 秒再停止。
+
+期望：6 条按上述顺序出现，不能漏掉中间任意一条。
 
 ## Case 3：打开聊天历史
 
-目的：覆盖一次出现多条旧消息时的回放行为。
+入口选择：`Case 3 打开聊天历史`
 
-建议样例：
+模板：
 
 ```text
-[PLAYER1]: 처음에 왼쪽
-[PLAYER2]: 위도우 조심
-[PLAYER3]: 궁 있어?
-[PLAYER4]: 다음 한타 기다려
-[PLAYER5]: 같이 들어가
+Tools\ReplayLab\expected-templates\case03-open-chat-history\expected.json
 ```
 
-操作：
+目的：覆盖打开聊天历史时一次出现多条旧消息。
 
-1. 先让聊天区自然产生 5 条以上玩家消息。
-2. 等聊天淡出或只剩少量可见行。
-3. 选择 `Case 3 打开聊天历史`，点击“录制 Case”。
-4. 打开 OW 聊天窗口，让历史消息一次性出现。
-5. 关闭再打开聊天窗口 2-3 次，每次间隔 2 秒。
+关键点：这个 case 要先发送消息，再开始录制，然后通过打开聊天历史让旧消息进入截图区域。
 
-期望：历史中的玩家消息不漏；已翻译过的消息后续阶段应能直接显示，不重复请求。
+录制前先发送，不开录制：
+
+```text
+Reverieach: 안녕하세요
+等待 1 秒
+疯狂的鹿: 오늘 첫 판이에요
+等待 1 秒
+天剑若叶: 위도우 조심
+等待 1 秒
+Reverieach: 처음엔 왼쪽으로 가자
+等待 1 秒
+疯狂的鹿: 궁 차면 말해줘
+等待 1 秒
+天剑若叶: 같이 들어가자
+```
+
+然后：
+
+1. 等这些消息自然淡出，或至少等到可见区只剩少量消息。
+2. 选择 Case 3，点击“录制 Case”。
+3. 打开 OW 聊天历史，让 6 条历史消息一次性出现。
+4. 关闭聊天框，等待 2 秒，再打开一次。
+5. 重复开/关 2-3 次。
+6. 停止录制。
+
+期望：6 条历史消息都被 ReplayLab 看到，顺序保持一致。
 
 ## Case 4：OCR 字符抖动
 
-目的：捕获 OneOCR 对同一句相邻帧识别出不同字符的情况。
+入口选择：`Case 4 OCR 字符抖动`
 
-建议样例：
+模板：
 
 ```text
-[PLAYER1]: 트레이서 뒤에 있어
-[PLAYER2]: 키리코 스즈 빠짐
-[PLAYER3]: 라마트라 궁 조심
+Tools\ReplayLab\expected-templates\case04-ocr-character-jitter\expected.json
 ```
 
-操作：
+目的：捕获同一句在相邻帧被 OneOCR 识别成不同字符的情况。
 
-1. 选择 `Case 4 OCR 字符抖动`，点击“录制 Case”。
-2. 发送包含复杂韩文字形的中等长度句子。
-3. 不要立刻发下一句，让同一句在聊天区停留至少 10 秒。
-4. 可以轻微移动游戏画面或开关聊天框，增加 OCR 抖动机会。
+录制前：
 
-期望：同一句即使 raw OCR 多帧不同，也只产生一条 expected 消息。
+1. 选择 Case 4，点击“录制 Case”。
+2. 每发一条后都等待足够久，让同一句跨多帧停留。
+
+发送顺序：
+
+```text
+Reverieach: 트레이서 뒤에 있어 조심해
+等待 10 秒
+疯狂的鹿: 키리코 스즈 빠졌어
+等待 10 秒
+天剑若叶: 라마트라 궁 조심해
+```
+
+发送后继续录 10 秒再停止。
+
+期望：每句只算一条。raw OCR 内如果出现字符抖动，不应变成重复 accepted 消息。
 
 ## Case 5：韩语空格抖动
 
-目的：覆盖韩语空格不稳定导致的同句多变体。
+入口选择：`Case 5 韩语空格抖动`
 
-建议样例：
+模板：
 
 ```text
-[PLAYER1]: 우리 같이 들어가자
-[PLAYER1]: 라인 방벽 없어
-[PLAYER1]: 아나 힐 좀 줘
+Tools\ReplayLab\expected-templates\case05-korean-spacing-jitter\expected.json
 ```
 
-操作：
+目的：覆盖韩语空格不稳定、OCR 断词位置变化、带空格竞技 callout。
 
-1. 选择 `Case 5 韩语空格抖动`，点击“录制 Case”。
-2. 发送 2-3 条带空格的韩语句子。
-3. 每条消息停留 8-10 秒再发送下一条。
-4. 录完后检查 frame JSON 中 raw/processed 是否出现空格位置差异。
+录制前：选择 Case 5，点击“录制 Case”。
 
-期望：空格变体不应产生重复翻译条目。
+发送顺序：每条间隔 8 秒。
+
+```text
+Reverieach: 우리 같이 들어가자
+Reverieach: 아나 힐 좀 줘
+疯狂的鹿: 라인 방벽 없어
+天剑若叶: 다음 한타 천천히
+```
+
+发送后继续录 10 秒再停止。
+
+期望：空格位置的 OCR 变体不应制造重复消息。
 
 ## Case 6：系统提示与玩家消息交错
 
-目的：覆盖中文系统提示和韩语玩家消息交错，验证 parser 后续 D12 修改。
+入口选择：`Case 6 系统提示交错`
 
-建议样例：
-
-```text
-[PLAYER1]: 힐 필요해
-[PLAYER2]: 리퍼 뒤
-[PLAYER3]: 궁극기 있어
-```
-
-操作：
-
-1. 选择 `Case 6 系统提示交错`，点击“录制 Case”。
-2. 在游戏中触发几条中文系统提示，例如加入/离开语音、队伍提示、比赛阶段提示。
-3. 在系统提示之间穿插 3 条以上韩语玩家消息。
-4. 录制 30 秒左右。
-
-期望：expected 只写玩家消息；系统提示不写入 expected。若当前旧 parser 误翻系统提示，
-记录为 baseline，不在 T0 阶段修。
-
-## Case 7：完全淡化后再次发言
-
-目的：覆盖空帧后 1-2 条可见行必须按新消息处理，防止被吸收到旧记录。
-
-建议样例：
+模板：
 
 ```text
-[PLAYER1]: ㄱㄱ
-等待淡化
-[PLAYER1]: ㄱㄱ
-[PLAYER1]: 가자
+Tools\ReplayLab\expected-templates\case06-system-player-mixed\expected.json
 ```
 
-操作：
+目的：覆盖中文系统提示与韩语玩家消息交错。expected 只包含玩家消息。
 
-1. 选择 `Case 7 淡化后同文本再发`，点击“录制 Case”。
-2. 发送一条短消息，例如 `ㄱㄱ` 或 `가자`。
-3. 等聊天完全淡化，录到至少 2-3 帧无聊天。
-4. 再发送同样或非常相似的短消息。
-5. 继续录 10 秒。
+录制前：选择 Case 6，点击“录制 Case”。
 
-期望：淡化前后的两条相同短消息都应作为独立玩家消息进入 expected。
+操作脚本：
 
-## 建议命名
-
-真实样本确认可用后，可把会话目录复制到：
+1. 触发一条中文系统提示，例如让一个账号加入/离开语音、切换队伍状态、或打开会产生系统提示的聊天事件。
+2. 发送：
 
 ```text
-Tools/ReplayLab/fixtures/<case-id>/
+Reverieach: 힐 필요해
 ```
 
-每个 fixture 至少包含：
+3. 再触发一条中文系统提示。
+4. 发送：
 
 ```text
-session.json
-frames/frame_*.json
-expected.json
+疯狂的鹿: 리퍼 뒤 조심
 ```
 
-PNG 可以保留用于人工复核；如果仓库体积过大，提交前先和维护者确认。
+5. 再触发一条中文系统提示。
+6. 发送：
+
+```text
+天剑若叶: 궁극기 있어
+```
+
+7. 最后发送：
+
+```text
+Reverieach: 이번 한타 기다려
+```
+
+发送后继续录 10 秒再停止。
+
+期望：ReplayLab expected 中只有 4 条玩家韩语消息；中文系统提示不应进入 expected。
+
+## Case 7：完全淡化后同文本再发
+
+入口选择：`Case 7 淡化后同文本再发`
+
+模板：
+
+```text
+Tools\ReplayLab\expected-templates\case07-fade-then-repeat\expected.json
+```
+
+目的：覆盖聊天完全淡化后，相同短句再次出现必须作为新消息处理。
+
+录制前：选择 Case 7，点击“录制 Case”。
+
+发送顺序：
+
+```text
+Reverieach: ㄱㄱ
+```
+
+然后等待聊天完全淡化，至少再多等 3 秒，确保录到空帧。
+
+继续发送：
+
+```text
+Reverieach: ㄱㄱ
+等待 2 秒
+疯狂的鹿: 가자
+等待 2 秒
+天剑若叶: 가자
+```
+
+发送后继续录 10 秒再停止。
+
+期望：两个 `Reverieach: ㄱㄱ` 都必须出现在 expected 中；后两个 `가자`
+来自不同账号，也必须各算一条。
+
+## 快速命令索引
+
+把 `<session-directory>` 换成停止录制后打开的目录。
+
+```powershell
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\case01-korean-short-cold-start\expected.json
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\case02-multi-speaker-burst\expected.json
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\case03-open-chat-history\expected.json
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\case04-ocr-character-jitter\expected.json
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\case05-korean-spacing-jitter\expected.json
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\case06-system-player-mixed\expected.json
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- <session-directory> Tools\ReplayLab\expected-templates\case07-fade-then-repeat\expected.json
+```

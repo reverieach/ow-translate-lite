@@ -1,0 +1,25 @@
+{
+  "caseId": "case07-fade-then-repeat",
+  "expectedMessages": [
+    {
+      "speaker": "Reverieach",
+      "sourceText": "ㄱㄱ"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "ㄱㄱ"
+    },
+    {
+      "speaker": "疯狂的鹿",
+      "sourceText": "가자"
+    },
+    {
+      "speaker": "天剑若叶",
+      "sourceText": "가자"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}

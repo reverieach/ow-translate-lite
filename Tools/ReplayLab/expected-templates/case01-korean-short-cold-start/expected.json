@@ -1,0 +1,25 @@
+{
+  "caseId": "case01-korean-short-cold-start",
+  "expectedMessages": [
+    {
+      "speaker": "Reverieach",
+      "sourceText": "안녕"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "ㄱㄱ"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "힐좀"
+    },
+    {
+      "speaker": "Reverieach",
+      "sourceText": "나이스"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}
