@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private readonly RecentChatLanguageTracker _recentChatLanguages = new();
     private readonly HotKeyService _replyHotKey = new(ReplyHotkeyId);
     private readonly DiagnosticsService _diagnostics = new();
+    private readonly FrameSequenceRecorder _frameSequenceRecorder = new();
     private readonly OverlayController _overlayController = new();
     private OwGlossaryService _glossary = null!;
     private TranslationCoordinator _coordinator = null!;
@@ -90,6 +91,7 @@ public partial class MainWindow : Window
         _replyHotKey.Dispose();
         _replyTranslationCts?.Cancel();
         _fetchModelsCts?.Cancel();
+        _frameSequenceRecorder.Stop();
         StopLoop(hideOverlay: false, clearOverlay: false);
         _ocrEngineManager.Dispose();
         SaveSettingsFromUi();
@@ -172,7 +174,10 @@ public partial class MainWindow : Window
     }
 
     private TranslationCoordinator CreateCoordinator() =>
-        new(_config.Settings, _glossary, AppendDedupeLog);
+        new(_config.Settings, _glossary, AppendDedupeLog)
+        {
+            FrameSequenceRecorder = _frameSequenceRecorder
+        };
 
     private void SelectCombo(WpfComboBox combo, string value)
     {
@@ -528,6 +533,46 @@ public partial class MainWindow : Window
         AddLog($"已导出诊断：{diagnosticsPath}");
     }
 
+    private void FrameRecording_Click(object sender, RoutedEventArgs e)
+    {
+        if (_frameSequenceRecorder.IsRecording)
+        {
+            string? sessionDirectory = _frameSequenceRecorder.Stop();
+            UpdateFrameRecordingUi();
+            if (!string.IsNullOrWhiteSpace(sessionDirectory))
+            {
+                AddLog($"已结束 Case 录制：{sessionDirectory}");
+                OpenShellPath(sessionDirectory);
+            }
+
+            return;
+        }
+
+        EndFrameAdjustment(log: true);
+        SaveSettingsFromUi();
+        ApplyScreenshotSaveDirectory();
+        if (_config.Settings.CaptureRegion is null)
+        {
+            AddLog("请先选择聊天区域，再开始录制 Case。");
+            return;
+        }
+
+        string caseId = GetComboText(FrameCaseCombo);
+        string sessionPath = _frameSequenceRecorder.Start(
+            caseId,
+            _config.Settings.CaptureRegion,
+            _config.Settings.CaptureIntervalMs);
+        _coordinator.FrameSequenceRecorder = _frameSequenceRecorder;
+        UpdateFrameRecordingUi();
+        AddLog($"已开始录制 {caseId}：{sessionPath}");
+        AddLog("录制时请按对应 case 指南操作；完成后再次点击“停止录制”。");
+
+        if (!_isRunning)
+        {
+            RestartLoop(resetChatCycle: true, resetOcrEngine: false, "已开始识别并录制 Case。");
+        }
+    }
+
     private void ClearUserData_Click(object sender, RoutedEventArgs e)
     {
         MessageBoxResult result = System.Windows.MessageBox.Show(
@@ -543,6 +588,7 @@ public partial class MainWindow : Window
         }
 
         StopLoop(hideOverlay: true, clearOverlay: true);
+        _frameSequenceRecorder.Stop();
         _overlayController.Hide();
         LogList.Items.Clear();
         _config.ResetUserData();
@@ -1289,6 +1335,23 @@ public partial class MainWindow : Window
         StartButton.IsEnabled = !_isRunning;
         StopButton.IsEnabled = _isRunning;
         AdjustFrameButton.IsEnabled = true;
+        UpdateFrameRecordingUi();
+    }
+
+    private void UpdateFrameRecordingUi()
+    {
+        if (FrameRecordingButton is null || FrameCaseCombo is null)
+        {
+            return;
+        }
+
+        bool isRecording = _frameSequenceRecorder.IsRecording;
+        FrameRecordingButton.Content = isRecording ? "停止录制" : "录制 Case";
+        FrameRecordingButton.Background = isRecording
+            ? System.Windows.Media.Brushes.LightGoldenrodYellow
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(120, 217, 149));
+        FrameRecordingButton.BorderBrush = FrameRecordingButton.Background;
+        FrameCaseCombo.IsEnabled = !isRecording;
     }
 
     private void ApplyFrameAdjustmentState()
@@ -1338,5 +1401,21 @@ public partial class MainWindow : Window
 
     private static bool IsFinite(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static void OpenShellPath(string path)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = path,
+                UseShellExecute = true
+            });
+        }
+        catch
+        {
+            // Opening the folder is convenience-only.
+        }
+    }
 
 }

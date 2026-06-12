@@ -28,6 +28,7 @@ public sealed class TranslationCoordinator
     private const double DuplicateTextScoreThreshold = 0.76;
 
     public string? ScreenshotSaveDirectory { get; set; }
+    public FrameSequenceRecorder? FrameSequenceRecorder { get; set; }
     public bool ChatCycleJustReset { get; private set; }
     public bool HasVisibleChat { get; private set; }
     public IReadOnlyList<ParsedChatLine> LastVisibleChatLines { get; private set; } = Array.Empty<ParsedChatLine>();
@@ -78,6 +79,22 @@ public sealed class TranslationCoordinator
         }
     }
 
+    public void CompleteOfflineTranslations(IReadOnlyList<ParsedChatLine> lines)
+    {
+        DateTime now = DateTime.Now;
+        foreach (ParsedChatLine line in lines)
+        {
+            RememberTranslatedLine(line, now);
+            _pendingMessageKeys.Remove(CreateMessageKey(line));
+            RemovePendingSnapshot(CreateSnapshot(line));
+        }
+
+        if (lines.Count > 0)
+        {
+            LogDedupe($"offline-translated count={lines.Count} lines={FormatLines(lines)}");
+        }
+    }
+
     public async Task<IReadOnlyList<TranslationRecord>> ProcessAsync(IOcrEngine ocrEngine, CancellationToken cancellationToken)
     {
         IReadOnlyList<ParsedChatLine> lines = await DetectNewLinesAsync(ocrEngine, cancellationToken);
@@ -96,46 +113,19 @@ public sealed class TranslationCoordinator
 
         System.Windows.Rect captureRegion = _settings.CaptureRegion.ToRect();
         using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
-        IReadOnlyList<OcrTextLine> ocrLines = await ocrEngine.RecognizeAsync(bitmap, _settings.OcrLanguage, cancellationToken);
-        ocrLines = OcrTextPostProcessor.Process(ocrLines);
-        IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(ocrLines);
-        LastVisibleChatLines = chatLines;
-        LogDedupe($"ocr-frame ocrLines={ocrLines.Count} chatLines={chatLines.Count} previous={_previousVisibleMessages.Count} visible={FormatLines(chatLines)}");
-        if (chatLines.Count == 0)
-        {
-            ChatCycleJustReset = ResetCycleIfChatStayedHidden();
-            LogDedupe($"no-chat-lines reset={ChatCycleJustReset}");
-            return Array.Empty<ParsedChatLine>();
-        }
+        IReadOnlyList<OcrTextLine> rawOcrLines = await ocrEngine.RecognizeAsync(bitmap, _settings.OcrLanguage, cancellationToken);
+        IReadOnlyList<OcrTextLine> processedOcrLines = OcrTextPostProcessor.Process(rawOcrLines);
+        IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(processedOcrLines);
+        FrameDetectionResult detectionResult = DetectNewLinesFromParsedLines(chatLines);
+        FrameSequenceRecorder?.RecordFrame(
+            bitmap,
+            captureRegion,
+            rawOcrLines,
+            processedOcrLines,
+            chatLines,
+            detectionResult);
 
-        HasVisibleChat = true;
-        DateTime now = DateTime.Now;
-        CleanupRecentDedupe(now);
-        _lastAnyMessageVisibleAt = now;
-        List<ParsedChatLine> candidateLines = FindNewLinesByVisibleOrder(chatLines);
-        LogDedupe($"candidate-lines count={candidateLines.Count} candidates={FormatLines(candidateLines)}");
-        UpdatePreviousVisibleMessages(chatLines);
-
-        List<ParsedChatLine> newLines = [];
-        HashSet<string> batchKeys = new(StringComparer.Ordinal);
-        foreach (ParsedChatLine line in candidateLines)
-        {
-            string key = CreateMessageKey(line);
-            VisibleMessageSnapshot snapshot = CreateSnapshot(line);
-            string? duplicateReason = GetDuplicateReason(key, snapshot, line.SourceText, now, batchKeys);
-            if (duplicateReason is not null)
-            {
-                LogDedupe($"drop reason={duplicateReason} line={FormatLine(line)} key={key}");
-                continue;
-            }
-
-            newLines.Add(line);
-            _pendingMessageKeys.Add(key);
-            _pendingMessageSnapshots.Add(snapshot);
-            LogDedupe($"accept line={FormatLine(line)} key={key}");
-        }
-
-        LogDedupe($"new-lines count={newLines.Count}");
+        IReadOnlyList<ParsedChatLine> newLines = detectionResult.NewLines;
         if (newLines.Count > 0 && ScreenshotSaveDirectory is not null)
         {
             try
@@ -151,6 +141,65 @@ public sealed class TranslationCoordinator
         }
 
         return newLines;
+    }
+
+    public FrameDetectionResult DetectNewLinesFromParsedLines(IReadOnlyList<ParsedChatLine> chatLines)
+    {
+        ChatCycleJustReset = false;
+        HasVisibleChat = false;
+        LastVisibleChatLines = chatLines;
+        LogDedupe($"detect-frame chatLines={chatLines.Count} previous={_previousVisibleMessages.Count} visible={FormatLines(chatLines)}");
+        if (chatLines.Count == 0)
+        {
+            ChatCycleJustReset = ResetCycleIfChatStayedHidden();
+            LogDedupe($"no-chat-lines reset={ChatCycleJustReset}");
+            return new FrameDetectionResult(
+                chatLines,
+                Array.Empty<ParsedChatLine>(),
+                Array.Empty<FrameDetectionDecision>(),
+                Array.Empty<ParsedChatLine>(),
+                HasVisibleChat,
+                ChatCycleJustReset);
+        }
+
+        HasVisibleChat = true;
+        DateTime now = DateTime.Now;
+        CleanupRecentDedupe(now);
+        _lastAnyMessageVisibleAt = now;
+        List<ParsedChatLine> candidateLines = FindNewLinesByVisibleOrder(chatLines);
+        LogDedupe($"candidate-lines count={candidateLines.Count} candidates={FormatLines(candidateLines)}");
+        UpdatePreviousVisibleMessages(chatLines);
+
+        List<ParsedChatLine> newLines = [];
+        List<FrameDetectionDecision> decisions = [];
+        HashSet<string> batchKeys = new(StringComparer.Ordinal);
+        foreach (ParsedChatLine line in candidateLines)
+        {
+            string key = CreateMessageKey(line);
+            VisibleMessageSnapshot snapshot = CreateSnapshot(line);
+            string? duplicateReason = GetDuplicateReason(key, snapshot, line.SourceText, now, batchKeys);
+            if (duplicateReason is not null)
+            {
+                LogDedupe($"drop reason={duplicateReason} line={FormatLine(line)} key={key}");
+                decisions.Add(new FrameDetectionDecision(line, false, duplicateReason, key));
+                continue;
+            }
+
+            newLines.Add(line);
+            _pendingMessageKeys.Add(key);
+            _pendingMessageSnapshots.Add(snapshot);
+            decisions.Add(new FrameDetectionDecision(line, true, "accepted", key));
+            LogDedupe($"accept line={FormatLine(line)} key={key}");
+        }
+
+        LogDedupe($"new-lines count={newLines.Count}");
+        return new FrameDetectionResult(
+            chatLines,
+            candidateLines,
+            decisions,
+            newLines,
+            HasVisibleChat,
+            ChatCycleJustReset);
     }
 
     public async Task<IReadOnlyList<TranslationRecord>> TranslateAsync(IReadOnlyList<ParsedChatLine> newLines, CancellationToken cancellationToken)
@@ -177,12 +226,7 @@ public sealed class TranslationCoordinator
                     result.SourceLine.SourceText,
                     result.TranslatedText,
                     DateTime.Now));
-                string key = CreateMessageKey(result.SourceLine);
-                VisibleMessageSnapshot snapshot = CreateSnapshot(result.SourceLine);
-                _seenInCurrentChatCycle.Add(key);
-                _recentDedupeCache[key] = DateTime.Now;
-                _recentMessageSnapshots.Add(new RecentMessageSnapshot(snapshot, DateTime.Now));
-                LogDedupe($"translated remembered line={FormatLine(result.SourceLine)} key={key}");
+                RememberTranslatedLine(result.SourceLine, DateTime.Now);
             }
 
             return records;
@@ -463,6 +507,16 @@ public sealed class TranslationCoordinator
             >= 50 => LongRecentDedupeTtl,
             _ => DefaultRecentDedupeTtl
         };
+    }
+
+    private void RememberTranslatedLine(ParsedChatLine line, DateTime now)
+    {
+        string key = CreateMessageKey(line);
+        VisibleMessageSnapshot snapshot = CreateSnapshot(line);
+        _seenInCurrentChatCycle.Add(key);
+        _recentDedupeCache[key] = now;
+        _recentMessageSnapshots.Add(new RecentMessageSnapshot(snapshot, now));
+        LogDedupe($"translated remembered line={FormatLine(line)} key={key}");
     }
 
     private static string CreateMessageKey(ParsedChatLine line) =>
