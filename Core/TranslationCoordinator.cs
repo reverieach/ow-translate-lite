@@ -280,14 +280,28 @@ public sealed class TranslationCoordinator
         }
     }
 
-    private ChatMessage? FindQueuedMessage(ParsedChatLine line) =>
-        _timeline.Messages
+    private ChatMessage? FindQueuedMessage(ParsedChatLine line)
+    {
+        if (line.Seq != 0)
+        {
+            // Identity match: never fall back to fuzzy text for seq-carrying lines, otherwise two
+            // near-identical messages collide (one translated twice, the other stuck forever).
+            ChatMessage? bySeq = _timeline.Messages.FirstOrDefault(message => message.Seq == line.Seq);
+            return bySeq is not null && bySeq.State is ChatMessageState.Queued or ChatMessageState.Translating
+                ? bySeq
+                : null;
+        }
+
+        return _timeline.Messages
             .LastOrDefault(message =>
                 message.State is ChatMessageState.Queued or ChatMessageState.Translating &&
                 IsSameTimelineLine(message, line));
+    }
 
     private ChatMessage? FindTimelineMessage(ParsedChatLine line) =>
-        _timeline.Messages.LastOrDefault(message => IsSameTimelineLine(message, line));
+        line.Seq != 0
+            ? _timeline.Messages.FirstOrDefault(message => message.Seq == line.Seq)
+            : _timeline.Messages.LastOrDefault(message => IsSameTimelineLine(message, line));
 
     private static bool IsSameTimelineLine(ChatMessage message, ParsedChatLine line)
     {
@@ -304,7 +318,7 @@ public sealed class TranslationCoordinator
     }
 
     private static ParsedChatLine ToParsedChatLine(ChatMessage message) =>
-        new(message.Speaker, message.ConsensusText, message.Bounds, message.GlossaryHits);
+        new(message.Speaker, message.ConsensusText, message.Bounds, message.GlossaryHits) { Seq = message.Seq };
 
     private void LogDedupe(string message)
     {
