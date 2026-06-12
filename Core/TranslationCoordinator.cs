@@ -66,6 +66,34 @@ public sealed class TranslationCoordinator
         }
     }
 
+    public IReadOnlyList<ParsedChatLine> MarkTranslationFailedForRetry(IReadOnlyList<ParsedChatLine> lines, int maxRetries)
+    {
+        List<ParsedChatLine> retryLines = [];
+        foreach (ParsedChatLine line in lines)
+        {
+            ChatMessage? message = FindTimelineMessage(line);
+            if (message is null)
+            {
+                LogDedupe($"translation-failed-no-timeline line={FormatLine(line)}");
+                continue;
+            }
+
+            _timeline.MarkFailed(message);
+            if (message.RetryCount <= maxRetries)
+            {
+                _timeline.MarkQueued(message);
+                retryLines.Add(ToParsedChatLine(message));
+                LogDedupe($"translation-retry seq={message.Seq} attempt={message.RetryCount} line={FormatLine(line)}");
+            }
+            else
+            {
+                LogDedupe($"translation-failed-final seq={message.Seq} retries={message.RetryCount} line={FormatLine(line)}");
+            }
+        }
+
+        return retryLines;
+    }
+
     public void CompleteOfflineTranslations(IReadOnlyList<ParsedChatLine> lines)
     {
         foreach (ParsedChatLine line in lines)

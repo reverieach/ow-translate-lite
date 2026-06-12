@@ -254,6 +254,9 @@ static int RunTimelineSmoke()
     failures += Assert(thirdMessage.State == ChatMessageState.Translated && thirdMessage.Translation == "源氏在后面", "translated state");
     timeline.MarkFailed(secondMessage);
     failures += Assert(secondMessage.State == ChatMessageState.Failed && secondMessage.RetryCount == 1, "failed state");
+    long retrySeq = secondMessage.Seq;
+    timeline.MarkQueued(secondMessage);
+    failures += Assert(secondMessage.State == ChatMessageState.Queued && secondMessage.Seq == retrySeq, "retry keeps seq");
 
     IReadOnlyList<ChatMessage> tail = timeline.TailWindow(1);
     failures += Assert(tail.Count == 1 && tail[0].Seq == 3, "tail window");

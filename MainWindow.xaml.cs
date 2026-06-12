@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private const int MaxLogRecords = 200;
     private const int MaxTranslationQueueItems = 30;
     private const int MaxTranslationBatchSize = 4;
+    private const int MaxTranslationRetries = 2;
     private const int ReplyHotkeyId = 0x4F57;
 
     private readonly ConfigStore _config = new();
@@ -790,12 +791,20 @@ public partial class MainWindow : Window
                 catch (Exception ex)
                 {
                     _translationQueueStatus.FailBatch(batch.Count, ex.Message);
-                    _coordinator.ReleasePendingTranslations(batch);
+                    IReadOnlyList<ParsedChatLine> retryLines = _coordinator.MarkTranslationFailedForRetry(batch, MaxTranslationRetries);
+                    if (retryLines.Count > 0 && IsActiveGeneration(generation))
+                    {
+                        EnqueueTranslationLines(retryLines, generation, cancellationToken);
+                    }
+
                     Dispatcher.Invoke(() =>
                     {
                         if (IsActiveGeneration(generation))
                         {
-                            AddLog($"翻译请求失败：{ex.Message}");
+                            string retrySuffix = retryLines.Count > 0
+                                ? $"，将重试 {retryLines.Count} 条。"
+                                : "，已达到重试上限。";
+                            AddLog($"翻译请求失败：{ex.Message}{retrySuffix}");
                         }
                     });
                 }
