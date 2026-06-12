@@ -427,8 +427,42 @@ static string BuildMarkdownReport(ReplayReport report)
         builder.AppendLine($"| {frame.FrameIndex} | {frame.ElapsedMs} | {frame.RawOcrLines.Count} | {frame.ParsedLines.Count} | {frame.NewLines.Count} |");
     }
 
+    IReadOnlyList<ReplayVariantSummary> variants = BuildVariantSummary(report.Frames);
+    if (variants.Count > 0)
+    {
+        builder.AppendLine();
+        builder.AppendLine("## Variant Summary");
+        builder.AppendLine();
+        builder.AppendLine("| Key | Observations | Variants | Texts |");
+        builder.AppendLine("| ---: | ---: | ---: | --- |");
+        foreach (ReplayVariantSummary item in variants)
+        {
+            builder.AppendLine($"| {item.Key} | {item.ObservationCount} | {item.VariantCount} | `{string.Join("` / `", item.Texts)}` |");
+        }
+    }
+
     return builder.ToString();
 }
+
+static IReadOnlyList<ReplayVariantSummary> BuildVariantSummary(IReadOnlyList<ReplayFrameTrace> frames) =>
+    frames
+        .SelectMany(static frame => frame.Decisions)
+        .Where(static decision => !string.IsNullOrWhiteSpace(decision.Key))
+        .GroupBy(static decision => decision.Key, StringComparer.Ordinal)
+        .Select(static group =>
+        {
+            string[] texts = group
+                .Select(static decision => decision.SourceText)
+                .Where(static text => !string.IsNullOrWhiteSpace(text))
+                .Distinct(StringComparer.Ordinal)
+                .OrderBy(static text => text, StringComparer.Ordinal)
+                .ToArray();
+            return new ReplayVariantSummary(group.Key, group.Count(), texts.Length, texts);
+        })
+        .Where(static item => item.VariantCount > 1)
+        .OrderByDescending(static item => item.VariantCount)
+        .ThenBy(static item => item.Key, StringComparer.Ordinal)
+        .ToArray();
 
 public sealed record ReplayExpectation(
     string CaseId,
@@ -439,6 +473,12 @@ public sealed record ReplayExpectation(
     int AllowedExtraCount = 0);
 
 public sealed record ExpectedChatMessage(string Speaker, string SourceText);
+
+public sealed record ReplayVariantSummary(
+    string Key,
+    int ObservationCount,
+    int VariantCount,
+    IReadOnlyList<string> Texts);
 
 public sealed record ReplayReport(
     string SessionDirectory,

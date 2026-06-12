@@ -1,0 +1,33 @@
+{
+  "version": "2026.06.13-public-shape-v1",
+  "notes": "Public-data seed table for Hangul jamo OCR visual confusion. Runtime has an identical built-in fallback if this file is missing.",
+  "sources": [
+    "Unicode Hangul Jamo chart U+1100-U+11FF",
+    "Wikimedia Commons Hangeul stroke order category",
+    "KORIE Korean OCR benchmark notes on small-font Hangul, jamo fragmentation, and visually similar glyph confusion",
+    "Jamo-level OCR paper: Jamo Is All You Need"
+  ],
+  "pairs": [
+    { "left": "\u1100", "right": "\u110F", "cost": 0.45, "reason": "added stroke consonant pair" },
+    { "left": "\u1103", "right": "\u1110", "cost": 0.45, "reason": "added stroke consonant pair" },
+    { "left": "\u1107", "right": "\u1111", "cost": 0.45, "reason": "added stroke consonant pair" },
+    { "left": "\u110C", "right": "\u110E", "cost": 0.45, "reason": "added stroke consonant pair" },
+    { "left": "\u110B", "right": "\u1112", "cost": 0.55, "reason": "circle consonant with added stroke" },
+    { "left": "\u1106", "right": "\u1107", "cost": 0.55, "reason": "box-like consonant pair" },
+    { "left": "\u1102", "right": "\u1103", "cost": 0.60, "reason": "similar corner structure" },
+    { "left": "\u1103", "right": "\u1105", "cost": 0.60, "reason": "similar corner structure" },
+    { "left": "\u1100", "right": "\u1101", "cost": 0.50, "reason": "plain vs doubled consonant" },
+    { "left": "\u1103", "right": "\u1104", "cost": 0.50, "reason": "plain vs doubled consonant" },
+    { "left": "\u1107", "right": "\u1108", "cost": 0.50, "reason": "plain vs doubled consonant" },
+    { "left": "\u1109", "right": "\u110A", "cost": 0.50, "reason": "plain vs doubled consonant" },
+    { "left": "\u110C", "right": "\u110D", "cost": 0.50, "reason": "plain vs doubled consonant" },
+    { "left": "\u1161", "right": "\u1165", "cost": 0.45, "reason": "single short-stroke vowel orientation" },
+    { "left": "\u1162", "right": "\u1166", "cost": 0.45, "reason": "single short-stroke vowel orientation" },
+    { "left": "\u1163", "right": "\u1167", "cost": 0.50, "reason": "double short-stroke vowel orientation" },
+    { "left": "\u1164", "right": "\u1168", "cost": 0.50, "reason": "double short-stroke vowel orientation" },
+    { "left": "\u1169", "right": "\u116E", "cost": 0.55, "reason": "horizontal/vertical vowel orientation" },
+    { "left": "\u116D", "right": "\u1172", "cost": 0.55, "reason": "horizontal/vertical vowel orientation" },
+    { "left": "\u116A", "right": "\u116F", "cost": 0.50, "reason": "compound vowel orientation" },
+    { "left": "\u116B", "right": "\u1170", "cost": 0.50, "reason": "compound vowel orientation" }
+  ]
+}

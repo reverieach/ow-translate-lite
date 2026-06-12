@@ -33,6 +33,22 @@
       "expectedSimilar": true
     },
     {
+      "id": "visual-jamo-giyeok-kieuk-cost",
+      "left": "키리코 스즈 빠졌어",
+      "right": "기리코 스즈 빠졌어",
+      "minScore": 0.92,
+      "maxScore": 1.0,
+      "expectedSimilar": true
+    },
+    {
+      "id": "visual-jamo-vowel-orientation-cost",
+      "left": "가자",
+      "right": "거자",
+      "minScore": 0.88,
+      "maxScore": 1.0,
+      "expectedSimilar": true
+    },
+    {
       "id": "different-short-callout",
       "left": "ㄱㄱ",
       "right": "ㄴㄴ",
