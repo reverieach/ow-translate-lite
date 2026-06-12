@@ -1,0 +1,17 @@
+{
+  "caseId": "smoke-korean-short",
+  "expectedMessages": [
+    {
+      "speaker": "ANA",
+      "sourceText": "가자"
+    },
+    {
+      "speaker": "KIRIKO",
+      "sourceText": "힐 줘"
+    }
+  ],
+  "allowedMissingCount": 0,
+  "allowedDuplicateCount": 0,
+  "allowedOutOfOrderCount": 0,
+  "allowedExtraCount": 0
+}

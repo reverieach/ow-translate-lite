@@ -1,0 +1,12 @@
+{
+  "caseId": "smoke-korean-short",
+  "startedAt": "2026-06-12T00:00:00",
+  "appVersion": "smoke",
+  "captureRegion": {
+    "left": 0,
+    "top": 0,
+    "width": 480,
+    "height": 220
+  },
+  "captureIntervalMs": 900
+}

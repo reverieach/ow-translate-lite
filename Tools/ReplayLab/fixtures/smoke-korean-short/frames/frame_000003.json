@@ -1,0 +1,40 @@
+{
+  "frameIndex": 3,
+  "caseId": "smoke-korean-short",
+  "timestamp": "2026-06-12T00:00:01.800",
+  "elapsedMs": 1800,
+  "imageFile": "frames/frame_000003.png",
+  "captureRegion": {
+    "left": 0,
+    "top": 0,
+    "width": 480,
+    "height": 220
+  },
+  "rawOcrLines": [
+    {
+      "text": "[ANA]: 가자",
+      "bounds": {
+        "left": 10,
+        "top": 20,
+        "width": 160,
+        "height": 20
+      }
+    },
+    {
+      "text": "[KIRIKO]: 힐 줘",
+      "bounds": {
+        "left": 10,
+        "top": 48,
+        "width": 180,
+        "height": 20
+      }
+    }
+  ],
+  "processedOcrLines": [],
+  "parsedLines": [],
+  "candidateLines": [],
+  "decisions": [],
+  "newLines": [],
+  "hasVisibleChat": true,
+  "chatCycleJustReset": false
+}

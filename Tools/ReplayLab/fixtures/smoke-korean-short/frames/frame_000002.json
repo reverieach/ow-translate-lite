@@ -1,0 +1,31 @@
+{
+  "frameIndex": 2,
+  "caseId": "smoke-korean-short",
+  "timestamp": "2026-06-12T00:00:00.900",
+  "elapsedMs": 900,
+  "imageFile": "frames/frame_000002.png",
+  "captureRegion": {
+    "left": 0,
+    "top": 0,
+    "width": 480,
+    "height": 220
+  },
+  "rawOcrLines": [
+    {
+      "text": "[ANA]: 가자",
+      "bounds": {
+        "left": 10,
+        "top": 20,
+        "width": 160,
+        "height": 20
+      }
+    }
+  ],
+  "processedOcrLines": [],
+  "parsedLines": [],
+  "candidateLines": [],
+  "decisions": [],
+  "newLines": [],
+  "hasVisibleChat": true,
+  "chatCycleJustReset": false
+}
