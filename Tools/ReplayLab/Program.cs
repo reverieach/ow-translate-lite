@@ -260,8 +260,70 @@ static int RunTimelineSmoke()
     timeline.Clear();
     failures += Assert(timeline.Messages.Count == 0, "clear");
     failures += Assert(timeline.AddDetected(first, frameId: 5).Seq == 1, "clear resets seq");
+    failures += RunAlignmentSmoke();
     return failures;
 }
+
+static int RunAlignmentSmoke()
+{
+    int failures = 0;
+    ChatTimeline timeline = new();
+    TimelineAlignmentDetector detector = new();
+    TimelineAlignmentResult cold = detector.Detect(
+        timeline,
+        [
+            Parsed("Reverieach", "안녕"),
+            Parsed("疯狂的鹿", "힐 줄게")
+        ],
+        frameId: 1);
+    failures += Assert(cold.NewMessages.Count == 2 && cold.Matches.Count == 0, "align cold start all new");
+    failures += Assert(timeline.Messages[0].Seq == 1 && timeline.Messages[1].Seq == 2, "align cold seq");
+
+    TimelineAlignmentResult append = detector.Detect(
+        timeline,
+        [
+            Parsed("Reverieach", "안녕"),
+            Parsed("疯狂的鹿", "힐 줄게"),
+            Parsed("天剑若叶", "겐지 뒤")
+        ],
+        frameId: 2);
+    failures += Assert(append.Matches.Count == 2 && append.NewMessages.Count == 1, "align suffix append");
+    failures += Assert(append.NewMessages[0].Seq == 3, "align append seq");
+
+    detector = new TimelineAlignmentDetector();
+    timeline = new ChatTimeline();
+    detector.Detect(timeline, [Parsed("Reverieach", "ㄱㄱ")], frameId: 1);
+    detector.Detect(timeline, [], frameId: 2);
+    TimelineAlignmentResult afterEmpty = detector.Detect(timeline, [Parsed("Reverieach", "ㄱㄱ")], frameId: 3);
+    failures += Assert(afterEmpty.Matches.Count == 0 && afterEmpty.NewMessages.Count == 1, "align after empty short forced new");
+    failures += Assert(afterEmpty.NewMessages[0].Seq == 2, "align after empty seq");
+
+    detector = new TimelineAlignmentDetector();
+    timeline = new ChatTimeline();
+    detector.Detect(
+        timeline,
+        [
+            Parsed("Reverieach", "안녕하세요"),
+            Parsed("疯狂的鹿", "오늘 첫 판이에요"),
+            Parsed("天剑若叶", "위도우 조심")
+        ],
+        frameId: 1);
+    detector.Detect(timeline, [], frameId: 2);
+    TimelineAlignmentResult history = detector.Detect(
+        timeline,
+        [
+            Parsed("Reverieach", "안녕하세요"),
+            Parsed("疯狂的鹿", "오늘 첫 판이에요"),
+            Parsed("天剑若叶", "위도우 조심")
+        ],
+        frameId: 3);
+    failures += Assert(history.Matches.Count == 3 && history.NewMessages.Count == 0, "align after empty history");
+
+    return failures;
+}
+
+static ParsedChatLine Parsed(string speaker, string text) =>
+    new(speaker, text, new Rect(0, 0, 100, 20), []);
 
 static int Assert(bool condition, string label)
 {
