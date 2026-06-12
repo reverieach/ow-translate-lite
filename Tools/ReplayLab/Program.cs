@@ -352,13 +352,16 @@ static int RunAlignmentSmoke()
     failures += Assert(append.Matches.Count == 2 && append.NewMessages.Count == 1, "align suffix append");
     failures += Assert(append.NewMessages[0].Seq == 3, "align append seq");
 
+    // After a fade, a short line that still matches the retained timeline is absorbed, NOT re-minted.
+    // Re-displaying history on chat-box reopen must not create duplicates; genuine re-sends are rare
+    // and naturally fall out of the tail window once enough new messages arrive.
     detector = new TimelineAlignmentDetector();
     timeline = new ChatTimeline();
     detector.Detect(timeline, [Parsed("Reverieach", "ㄱㄱ")], frameId: 1);
     detector.Detect(timeline, [], frameId: 2);
     TimelineAlignmentResult afterEmpty = detector.Detect(timeline, [Parsed("Reverieach", "ㄱㄱ")], frameId: 3);
-    failures += Assert(afterEmpty.Matches.Count == 0 && afterEmpty.NewMessages.Count == 1, "align after empty short forced new");
-    failures += Assert(afterEmpty.NewMessages[0].Seq == 2, "align after empty seq");
+    failures += Assert(afterEmpty.Matches.Count == 1 && afterEmpty.NewMessages.Count == 0, "align after empty short absorbed");
+    failures += Assert(timeline.Messages.Count == 1, "align after empty no dup");
 
     detector = new TimelineAlignmentDetector();
     timeline = new ChatTimeline();
@@ -380,6 +383,57 @@ static int RunAlignmentSmoke()
         ],
         frameId: 3);
     failures += Assert(history.Matches.Count == 3 && history.NewMessages.Count == 0, "align after empty history");
+
+    // Regression (the duplicate-display bug): one garbled line in the MIDDLE of an otherwise-known
+    // frame must NOT dump the lines below it as new. The old greedy detector broke on the first
+    // sub-threshold line and rebuilt everything after it; positional alignment absorbs it in place.
+    detector = new TimelineAlignmentDetector();
+    timeline = new ChatTimeline();
+    ParsedChatLine[] knownFrame =
+    [
+        Parsed("Reverieach", "안녕하세요 다들 준비됐나요"),
+        Parsed("Reverieach", "나노 거의 준비됐어요"),
+        Parsed("Reverieach", "위도우 오른쪽 고지대에 있어요")
+    ];
+    detector.Detect(timeline, knownFrame, frameId: 1);
+    detector.Detect(timeline, knownFrame, frameId: 2);
+    int beforeMidDrift = timeline.Messages.Count;
+    TimelineAlignmentResult midDrift = detector.Detect(
+        timeline,
+        [
+            Parsed("Reverieach", "안녕하세요 다들 준비됐나요"),
+            Parsed("Reverieach", "@@@@@@@@"),
+            Parsed("Reverieach", "위도우 오른쪽 고지대에 있어요")
+        ],
+        frameId: 3);
+    failures += Assert(midDrift.NewMessages.Count == 0, "align mid-line drift no new");
+    failures += Assert(timeline.Messages.Count == beforeMidDrift, "align mid-line drift no timeline growth");
+
+    // Regression: a garbled TOP line plus a genuine new BOTTOM line yields exactly one new message,
+    // not a whole-frame rebuild (the no-suffix-match -> AddAllAsNew bug).
+    detector = new TimelineAlignmentDetector();
+    timeline = new ChatTimeline();
+    detector.Detect(
+        timeline,
+        [
+            Parsed("Reverieach", "안녕하세요 다들 준비됐나요"),
+            Parsed("Reverieach", "나노 거의 준비됐어요"),
+            Parsed("Reverieach", "위도우 오른쪽 고지대에 있어요")
+        ],
+        frameId: 1);
+    TimelineAlignmentResult topDrift = detector.Detect(
+        timeline,
+        [
+            Parsed("Reverieach", "@@@@@@@@"),
+            Parsed("Reverieach", "나노 거의 준비됐어요"),
+            Parsed("Reverieach", "위도우 오른쪽 고지대에 있어요"),
+            Parsed("Reverieach", "한 명씩 죽지 말고 좀 모여요")
+        ],
+        frameId: 2);
+    failures += Assert(topDrift.NewMessages.Count == 1, "align top drift single new");
+    failures += Assert(
+        topDrift.NewMessages.Count == 1 && topDrift.NewMessages[0].ConsensusText == "한 명씩 죽지 말고 좀 모여요",
+        "align top drift new text");
 
     return failures;
 }
