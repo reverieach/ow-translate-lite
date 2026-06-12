@@ -47,6 +47,13 @@ E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab
 ReplayLab writes `trace.json` and `report.md` under the session's
 `replay-output/<timestamp>/` folder by default.
 
+The markdown report includes:
+
+- Accepted messages.
+- Missing/duplicate/out-of-order/extra metrics.
+- Per-frame raw/parsed/new-message counts.
+- Variant Summary: timeline keys whose OCR text differed across frames. Use this to find repeated Korean jamo or spacing jitter before tuning `Resources/KoreanJamoConfusionCosts.json`.
+
 ## Expected File
 
 ```json
@@ -67,3 +74,21 @@ ReplayLab writes `trace.json` and `report.md` under the session's
 
 For golden cases, keep thresholds at zero unless a case explicitly documents a
 known acceptable system-message false positive.
+
+## Regression Commands
+
+Run these after every refactor commit that can affect detection, de-dupe,
+sampling, queueing, or overlay order:
+
+```powershell
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- --timeline-smoke
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- --similarity Tools\ReplayLab\similarity\korean-jamo-regression.json
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\ReplayLab\ReplayLab.csproj -c Release -- Tools\ReplayLab\fixtures\smoke-korean-short Tools\ReplayLab\fixtures\smoke-korean-short\expected.json
+E:\rstgametranslation\.dotnet\dotnet.exe build OwTranslateLite.csproj -c Release
+```
+
+Current smoke fixture acceptance target is strict zero:
+
+```text
+missing=0, duplicates=0, outOfOrder=0, extra=0
+```
