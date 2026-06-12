@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using OwTranslateLite.Ocr;
@@ -115,8 +116,6 @@ public sealed class TranslationCoordinator
 
     public async Task<IReadOnlyList<ParsedChatLine>> DetectNewLinesAsync(IOcrEngine ocrEngine, CancellationToken cancellationToken)
     {
-        ChatCycleJustReset = false;
-        HasVisibleChat = false;
         if (_settings.CaptureRegion is null)
         {
             LogDedupe("detect skipped: no capture region");
@@ -124,7 +123,18 @@ public sealed class TranslationCoordinator
         }
 
         System.Windows.Rect captureRegion = _settings.CaptureRegion.ToRect();
-        using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
+        using Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
+        return await DetectNewLinesFromBitmapAsync(ocrEngine, bitmap, captureRegion, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ParsedChatLine>> DetectNewLinesFromBitmapAsync(
+        IOcrEngine ocrEngine,
+        Bitmap bitmap,
+        System.Windows.Rect captureRegion,
+        CancellationToken cancellationToken)
+    {
+        ChatCycleJustReset = false;
+        HasVisibleChat = false;
         IReadOnlyList<OcrTextLine> rawOcrLines = await ocrEngine.RecognizeAsync(bitmap, _settings.OcrLanguage, cancellationToken);
         IReadOnlyList<OcrTextLine> processedOcrLines = OcrTextPostProcessor.Process(rawOcrLines);
         IReadOnlyList<ParsedChatLine> chatLines = _parser.Parse(processedOcrLines);

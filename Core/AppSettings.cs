@@ -21,7 +21,7 @@ public sealed class AppSettings
     public string ReplyTargetLanguage { get; set; } = "auto";
     public bool EnableReplyHotkey { get; set; }
     public string ReplyHotkey { get; set; } = "Ctrl+Shift+Enter";
-    public int CaptureIntervalMs { get; set; } = 900;
+    public int CaptureIntervalMs { get; set; } = 300;
     public int RequestTimeoutSeconds { get; set; } = 20;
     public double OverlayOpacity { get; set; } = 0.153;
     public double OverlayFontSize { get; set; } = 14.92;

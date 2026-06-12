@@ -79,7 +79,7 @@ public static class SettingsMigrator
             changed = true;
         }
 
-        settings.CaptureIntervalMs = Clamp(settings.CaptureIntervalMs, 400, 3000, ref changed);
+        settings.CaptureIntervalMs = Clamp(settings.CaptureIntervalMs, 250, 3000, ref changed);
         settings.RequestTimeoutSeconds = Clamp(settings.RequestTimeoutSeconds, 5, 90, ref changed);
         settings.OverlayOpacity = Clamp(settings.OverlayOpacity, 0, 1, ref changed);
         settings.OverlayFontSize = Clamp(settings.OverlayFontSize, 12, 36, ref changed);

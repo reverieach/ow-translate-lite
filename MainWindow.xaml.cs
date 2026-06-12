@@ -18,6 +18,9 @@ public partial class MainWindow : Window
     private static readonly TimeSpan OverlayIdleHideDelay = TimeSpan.FromSeconds(6);
     private static readonly TimeSpan OverlayHistoryPeekDuration = TimeSpan.FromSeconds(5);
     private static readonly TimeSpan TranslationBatchWindow = TimeSpan.FromMilliseconds(120);
+    private const int MinSamplingIntervalMs = 250;
+    private const int MaxSamplingIntervalMs = 300;
+    private const int BurstOcrFrameCount = 3;
     private const int MaxOverlayRecords = 50;
     private const int MaxLogRecords = 200;
     private const int MaxTranslationQueueItems = 30;
@@ -37,6 +40,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _replyTranslationCts;
     private CancellationTokenSource? _fetchModelsCts;
     private readonly OcrEngineManager _ocrEngineManager = new();
+    private readonly FrameDiffGate _frameDiffGate = new();
     private readonly Queue<ParsedChatLine> _translationQueue = [];
     private readonly object _translationQueueLock = new();
     private readonly TranslationQueueStatusTracker _translationQueueStatus = new();
@@ -52,6 +56,7 @@ public partial class MainWindow : Window
     private bool _isReplyModeActive;
     private bool _isLoadingSettings;
     private bool _isAdjustingTranslationFrame;
+    private int _burstOcrFramesRemaining;
     private int _runGeneration;
     private readonly List<TranslationRecord> _records = [];
 
@@ -593,6 +598,8 @@ public partial class MainWindow : Window
         LogList.Items.Clear();
         _config.ResetUserData();
         _coordinator = CreateCoordinator();
+        _frameDiffGate.Reset();
+        _burstOcrFramesRemaining = 0;
         InvalidateOcrEngine();
         _activeRunSettingsKey = null;
         _pausedAt = null;
@@ -618,46 +625,65 @@ public partial class MainWindow : Window
         while (!cancellationToken.IsCancellationRequested && IsActiveGeneration(generation))
         {
             Stopwatch stopwatch = Stopwatch.StartNew();
+            bool ranOcr = false;
             try
             {
-                IReadOnlyList<ParsedChatLine> newLines = await _ocrEngineManager.UseAsync(
-                    _config.Settings.OcrEngine,
-                    _config.Settings.OcrLanguage,
-                    (engine, token) => _coordinator.DetectNewLinesAsync(engine, token),
-                    cancellationToken);
-
-                if (!IsActiveGeneration(generation))
+                if (_config.Settings.CaptureRegion is null)
                 {
                     break;
                 }
 
-                _recentChatLanguages.Record(_coordinator.LastVisibleChatLines);
-                bool hasVisibleChat = _coordinator.HasVisibleChat;
-                bool chatJustBecameVisible = hasVisibleChat && !_wasChatVisibleLastTick;
-                _wasChatVisibleLastTick = hasVisibleChat;
-                if (newLines.Count > 0)
+                System.Windows.Rect captureRegion = _config.Settings.CaptureRegion.ToRect();
+                using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
+                FrameDiffResult diff = _frameDiffGate.Observe(bitmap);
+                if (diff.HasChanged)
                 {
-                    EnqueueTranslationLines(newLines, generation, cancellationToken);
+                    _burstOcrFramesRemaining = BurstOcrFrameCount;
                 }
-                else if (chatJustBecameVisible)
+
+                if (_burstOcrFramesRemaining > 0)
                 {
-                    Dispatcher.Invoke(() =>
+                    ranOcr = true;
+                    _burstOcrFramesRemaining--;
+                    IReadOnlyList<ParsedChatLine> newLines = await _ocrEngineManager.UseAsync(
+                        _config.Settings.OcrEngine,
+                        _config.Settings.OcrLanguage,
+                        (engine, token) => _coordinator.DetectNewLinesFromBitmapAsync(engine, bitmap, captureRegion, token),
+                        cancellationToken);
+
+                    if (!IsActiveGeneration(generation))
                     {
-                        if (IsActiveGeneration(generation))
-                        {
-                            ShowOverlayForHistoryPeek();
-                        }
-                    });
-                }
-                else if (_coordinator.ChatCycleJustReset)
-                {
-                    Dispatcher.Invoke(() =>
+                        break;
+                    }
+
+                    _recentChatLanguages.Record(_coordinator.LastVisibleChatLines);
+                    bool hasVisibleChat = _coordinator.HasVisibleChat;
+                    bool chatJustBecameVisible = hasVisibleChat && !_wasChatVisibleLastTick;
+                    _wasChatVisibleLastTick = hasVisibleChat;
+                    if (newLines.Count > 0)
                     {
-                        if (IsActiveGeneration(generation))
+                        EnqueueTranslationLines(newLines, generation, cancellationToken);
+                    }
+                    else if (chatJustBecameVisible)
+                    {
+                        Dispatcher.Invoke(() =>
                         {
-                            MaybeHideOverlayAfterIdle();
-                        }
-                    });
+                            if (IsActiveGeneration(generation))
+                            {
+                                ShowOverlayForHistoryPeek();
+                            }
+                        });
+                    }
+                    else if (_coordinator.ChatCycleJustReset)
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (IsActiveGeneration(generation))
+                            {
+                                MaybeHideOverlayAfterIdle();
+                            }
+                        });
+                    }
                 }
 
                 stopwatch.Stop();
@@ -670,7 +696,9 @@ public partial class MainWindow : Window
 
                     MaybeHideOverlayAfterIdle();
                     RefreshReplyTargetDisplay();
-                    LatencyText.Text = $"{stopwatch.ElapsedMilliseconds} ms";
+                    LatencyText.Text = ranOcr
+                        ? $"{stopwatch.ElapsedMilliseconds} ms OCR"
+                        : $"{stopwatch.ElapsedMilliseconds} ms patrol";
                 });
             }
             catch (OperationCanceledException)
@@ -688,7 +716,7 @@ public partial class MainWindow : Window
                 });
             }
 
-            int delay = Math.Clamp(_config.Settings.CaptureIntervalMs, 400, 3000);
+            int delay = GetSamplingDelayMs();
             try
             {
                 await Task.Delay(delay, cancellationToken);
@@ -910,6 +938,8 @@ public partial class MainWindow : Window
         if (resetChatCycle)
         {
             _coordinator.ResetChatCycle();
+            _frameDiffGate.Reset();
+            _burstOcrFramesRemaining = 0;
         }
 
         if (resetOcrEngine)
@@ -945,6 +975,7 @@ public partial class MainWindow : Window
         _loopCts = null;
         Interlocked.Increment(ref _runGeneration);
         _isRunning = false;
+        _burstOcrFramesRemaining = 0;
         ClearTranslationQueue();
         _coordinator.ClearPendingTranslations();
         ApplyRunningState();
@@ -1158,6 +1189,9 @@ public partial class MainWindow : Window
     {
         return language is "en" or "ja" or "ko" ? language : "auto";
     }
+
+    private int GetSamplingDelayMs() =>
+        Math.Clamp(_config.Settings.CaptureIntervalMs, MinSamplingIntervalMs, MaxSamplingIntervalMs);
 
     private static void NormalizeReplySettings(AppSettings settings)
     {

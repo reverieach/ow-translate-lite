@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.IO;
+using System.Drawing;
 using System.Windows;
 using OwTranslateLite.Core;
 
@@ -257,6 +258,7 @@ static int RunTimelineSmoke()
     long retrySeq = secondMessage.Seq;
     timeline.MarkQueued(secondMessage);
     failures += Assert(secondMessage.State == ChatMessageState.Queued && secondMessage.Seq == retrySeq, "retry keeps seq");
+    failures += RunFrameDiffSmoke();
 
     IReadOnlyList<ChatMessage> tail = timeline.TailWindow(1);
     failures += Assert(tail.Count == 1 && tail[0].Seq == 3, "tail window");
@@ -264,6 +266,24 @@ static int RunTimelineSmoke()
     failures += Assert(timeline.Messages.Count == 0, "clear");
     failures += Assert(timeline.AddDetected(first, frameId: 5).Seq == 1, "clear resets seq");
     failures += RunAlignmentSmoke();
+    return failures;
+}
+
+static int RunFrameDiffSmoke()
+{
+    int failures = 0;
+    FrameDiffGate gate = new();
+    using Bitmap first = new(32, 32);
+    using Graphics firstGraphics = Graphics.FromImage(first);
+    firstGraphics.Clear(Color.Black);
+    failures += Assert(gate.Observe(first).HasChanged, "frame diff initial changed");
+    failures += Assert(!gate.Observe(first).HasChanged, "frame diff stable");
+
+    using Bitmap changed = new(32, 32);
+    using Graphics changedGraphics = Graphics.FromImage(changed);
+    changedGraphics.Clear(Color.Black);
+    changedGraphics.FillRectangle(Brushes.White, 8, 8, 16, 16);
+    failures += Assert(gate.Observe(changed).HasChanged, "frame diff changed");
     return failures;
 }
 
