@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -110,8 +109,6 @@ public partial class MainWindow : Window
             AppSettings settings = _config.Settings;
             NormalizeOcrSettings(settings);
             NormalizeReplySettings(settings);
-            SelectCombo(OcrEngineCombo, settings.OcrEngine);
-            SelectCombo(OcrLanguageCombo, settings.OcrLanguage);
             SelectCombo(ProviderCombo, settings.TranslationProvider);
             EnsureDefaultModelOptions();
             ApiUrlBox.Text = settings.ApiUrl;
@@ -129,7 +126,7 @@ public partial class MainWindow : Window
             FirstRunPanel.Visibility = settings.FirstRun ? Visibility.Visible : Visibility.Collapsed;
             UpdateProviderPreset();
             UpdateRegionText();
-            RefreshStatusChips();
+            RefreshRuntimeMetrics();
         }
         finally
         {
@@ -140,8 +137,8 @@ public partial class MainWindow : Window
     private void SaveSettingsFromUi()
     {
         AppSettings settings = _config.Settings;
-        settings.OcrEngine = GetComboText(OcrEngineCombo);
-        settings.OcrLanguage = GetComboText(OcrLanguageCombo);
+        settings.OcrEngine = "OneOCR";
+        settings.OcrLanguage = "auto";
         settings.TranslationProvider = GetComboText(ProviderCombo);
         settings.ApiUrl = ApiUrlBox.Text.Trim();
         settings.ApiKey = ApiKeyBox.Password.Trim();
@@ -158,7 +155,7 @@ public partial class MainWindow : Window
         SaveOverlayBounds(settings);
         _config.Save();
         ApplyOverlaySettings();
-        RefreshStatusChips();
+        RefreshRuntimeMetrics();
     }
 
     private void ApplyScreenshotSaveDirectory()
@@ -348,28 +345,6 @@ public partial class MainWindow : Window
         ApplyScreenshotSaveDirectory();
     }
 
-    private void OcrSettings_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (!IsLoaded || _isLoadingSettings)
-        {
-            return;
-        }
-
-        SaveSettingsFromUi();
-        _coordinator.ResetChatCycle();
-        InvalidateOcrEngine();
-
-        if (_isRunning)
-        {
-            RestartLoop(resetChatCycle: true, resetOcrEngine: true, "OCR 设置已更新，已重启识别。");
-        }
-        else
-        {
-            _activeRunSettingsKey = null;
-            AddLog("OCR 设置已更新，下次开始时生效。");
-        }
-    }
-
     private void FinishFirstRun_Click(object sender, RoutedEventArgs e)
     {
         SaveSettingsFromUi();
@@ -412,13 +387,6 @@ public partial class MainWindow : Window
             AddLog($"已选择区域 {rect.Left:0},{rect.Top:0} {rect.Width:0}x{rect.Height:0}");
         };
         selector.ShowDialog();
-    }
-
-    private void ShowOverlay_Click(object sender, RoutedEventArgs e)
-    {
-        EnsureOverlay();
-        ApplyOverlaySettings();
-        _overlayController.ShowAndActivate();
     }
 
     private void KeepOverlayVisible_Changed(object sender, RoutedEventArgs e)
@@ -545,7 +513,7 @@ public partial class MainWindow : Window
                 : models[0];
             SaveSettingsFromUi();
             AddLog($"已获取 {models.Count} 个模型。");
-            RefreshStatusChips();
+            RefreshRuntimeMetrics();
         }
         catch (OperationCanceledException) when (fetchCts.IsCancellationRequested)
         {
@@ -745,7 +713,7 @@ public partial class MainWindow : Window
                     LatencyText.Text = ranOcr
                         ? $"{stopwatch.ElapsedMilliseconds} ms OCR"
                         : $"{stopwatch.ElapsedMilliseconds} ms patrol";
-                    RefreshStatusChips(ranOcr ? "OCR burst" : null);
+                    RefreshRuntimeMetrics();
                 });
             }
             catch (OperationCanceledException)
@@ -799,7 +767,7 @@ public partial class MainWindow : Window
         {
             if (IsActiveGeneration(generation))
             {
-                RefreshStatusChips();
+                RefreshRuntimeMetrics();
             }
         });
 
@@ -936,7 +904,7 @@ public partial class MainWindow : Window
             }
 
             _translationQueueStatus.SetQueuedCount(_translationQueue.Count);
-            Dispatcher.Invoke(() => RefreshStatusChips());
+            Dispatcher.Invoke(() => RefreshRuntimeMetrics());
         }
 
         return Task.FromResult(batch);
@@ -971,7 +939,7 @@ public partial class MainWindow : Window
         _overlayController.Show();
         _overlayController.UpdateRecords(_records);
         UpdateRecentRecords();
-        RefreshStatusChips();
+        RefreshRuntimeMetrics();
     }
 
     private void RestartLoop(bool resetChatCycle, bool resetOcrEngine, string message)
@@ -1008,7 +976,7 @@ public partial class MainWindow : Window
         _activeRunSettingsKey = CreateRunSettingsKey();
         StatusText.Text = "运行中";
         ApplyRunningState();
-        RefreshStatusChips();
+        RefreshRuntimeMetrics();
         AddLog(message);
         _ = RunLoopAsync(generation, _loopCts.Token);
     }
@@ -1030,7 +998,7 @@ public partial class MainWindow : Window
         ClearTranslationQueue();
         _coordinator.ClearPendingTranslations();
         ApplyRunningState();
-        RefreshStatusChips();
+        RefreshRuntimeMetrics();
 
         if (clearOverlay)
         {
@@ -1354,7 +1322,7 @@ public partial class MainWindow : Window
         _consecutiveNoChatFrames = 0;
         _overlayController.UpdateRecords(_records);
         UpdateRecentRecords();
-        RefreshStatusChips();
+        RefreshRuntimeMetrics();
     }
 
     private void ClearTranslationQueue()
@@ -1442,7 +1410,7 @@ public partial class MainWindow : Window
         StopButton.IsEnabled = _isRunning;
         AdjustFrameButton.IsEnabled = true;
         UpdateFrameRecordingUi();
-        RefreshStatusChips();
+        RefreshRuntimeMetrics();
     }
 
     private void UpdateFrameRecordingUi()
@@ -1495,26 +1463,15 @@ public partial class MainWindow : Window
             regionKey);
     }
 
-    private void RefreshStatusChips(string? samplingStatus = null)
+    private void RefreshRuntimeMetrics()
     {
-        if (RunStatePillText is null)
+        if (QueueMetricText is null)
         {
             return;
         }
 
-        VersionText.Text = $"v{GetAppVersionLabel()}";
-        RunStatePillText.Text = _isRunning ? "运行中" : "待机";
-        ApiStateChipText.Text = string.IsNullOrWhiteSpace(_config.Settings.ApiKey)
-            ? "API 未配置"
-            : "API 已配置";
-        ModelStateChipText.Text = string.IsNullOrWhiteSpace(_config.Settings.Model)
-            ? "未选择模型"
-            : _config.Settings.Model;
-        SamplingStateChipText.Text = samplingStatus ?? $"巡逻 {GetSamplingDelayMs()}ms";
         TranslationQueueStatus queue = _translationQueueStatus.Snapshot();
-        QueueStateChipText.Text = $"队列 {queue.QueuedCount}";
         QueueMetricText.Text = queue.QueuedCount.ToString();
-        GlossaryStatusText.Text = $"术语 {_glossary.EntryCount} 项 · {_glossary.Version}";
     }
 
     private void UpdateRecentRecords()
@@ -1528,17 +1485,6 @@ public partial class MainWindow : Window
             .TakeLast(12)
             .Reverse<TranslationRecord>()
             .ToList();
-    }
-
-    private static string GetAppVersionLabel()
-    {
-        Assembly assembly = Assembly.GetExecutingAssembly();
-        string? informationalVersion = assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion;
-        return string.IsNullOrWhiteSpace(informationalVersion)
-            ? assembly.GetName().Version?.ToString() ?? "0.0.0"
-            : informationalVersion;
     }
 
     private static bool IsFinite(double value) =>

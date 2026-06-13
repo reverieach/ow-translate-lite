@@ -33,17 +33,16 @@
                 BorderBrush="{StaticResource BorderSoftBrush}"
                 BorderThickness="0,0,0,1"
                 MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
-            <Grid Margin="14,0,8,0">
+            <Grid Margin="16,0,10,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="12" Height="12" CornerRadius="6" Background="#FF5F57" Margin="0,0,7,0"/>
-                    <Border Width="12" Height="12" CornerRadius="6" Background="#FFBD2E" Margin="0,0,7,0"/>
-                    <Border Width="12" Height="12" CornerRadius="6" Background="#28C840" Margin="0,0,12,0"/>
-                    <TextBlock Text="OW Translator Lite" Foreground="{StaticResource TextSecondaryBrush}" FontSize="12" VerticalAlignment="Center"/>
-                </StackPanel>
+                <TextBlock Text="OW Translator Lite"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           FontSize="13"
+                           FontWeight="SemiBold"
+                           VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="-" Style="{StaticResource WindowCaptionButtonStyle}" Click="MinimizeWindow_Click"/>
                     <Button Content="□" Style="{StaticResource WindowCaptionButtonStyle}" Click="MaximizeRestoreWindow_Click"/>
@@ -54,360 +53,295 @@
 
         <Grid Grid.Row="1" Margin="18">
             <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
-                Style="{StaticResource CardBorderStyle}"
-                Padding="16,12"
-                Margin="0,0,0,12">
-            <Grid>
+            <Border Grid.Row="0"
+                    Style="{StaticResource CardBorderStyle}"
+                    Padding="16,12"
+                    Margin="0,0,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Border Width="34" Height="34" CornerRadius="9" Background="#182534" BorderBrush="#335C9DFF" BorderThickness="1" Margin="0,0,12,0">
+                            <Path Data="{StaticResource IconMessage}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource PrimaryBrush}" Width="18" Height="18"/>
+                        </Border>
+                        <StackPanel VerticalAlignment="Center">
+                            <TextBlock Text="OW Translator Lite" FontSize="22" FontWeight="SemiBold"/>
+                            <TextBlock Text="v0.2.0 beta" FontSize="12" Foreground="{StaticResource TextSecondaryBrush}" Margin="1,4,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button x:Name="StopButton" Content="暂停" Width="86" Click="Stop_Click"/>
+                        <Button x:Name="StartButton" Content="开始" Width="96" Style="{StaticResource PrimaryButtonStyle}" Click="Start_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="382"/>
+                    <ColumnDefinition Width="18"/>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Border Width="34" Height="34" CornerRadius="9" Background="#182534" BorderBrush="#335C9DFF" BorderThickness="1" Margin="0,0,12,0">
-                        <Path Data="{StaticResource IconMessage}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource PrimaryBrush}" Width="18" Height="18"/>
-                    </Border>
+                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
                     <StackPanel>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                            <TextBlock Text="OW Translator Lite" FontSize="22" FontWeight="SemiBold"/>
-                            <Border Margin="10,0,0,0" Style="{StaticResource ChipBorderStyle}" Padding="8,3">
-                                <TextBlock x:Name="VersionText" Text="v0.2.0 beta timeline" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}"/>
-                            </Border>
-                            <Border Margin="8,0,0,0" Style="{StaticResource ChipBorderStyle}" Padding="8,3" BorderBrush="#4464D2FF">
-                                <TextBlock x:Name="RunStatePillText" Text="待机" FontSize="11" Foreground="{StaticResource CyanBrush}"/>
-                            </Border>
-                        </StackPanel>
-                        <TextBlock x:Name="SubtitleText" Text="Apple Dark Console · 简体中文实时竞技翻译" Foreground="{StaticResource TextSecondaryBrush}" Margin="1,4,0,0"/>
-                    </StackPanel>
-                </StackPanel>
+                        <Border x:Name="FirstRunPanel" Style="{StaticResource CardBorderStyle}" BorderBrush="#660A84FF" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="首次配置" Style="{StaticResource SectionHeaderTextStyle}"/>
+                                <TextBlock Text="选择 API、翻译区域和 overlay 后即可开始。" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                <Button Content="完成首次配置" Style="{StaticResource PrimaryButtonStyle}" Margin="0,12,0,0" HorizontalAlignment="Left" Click="FinishFirstRun_Click"/>
+                            </StackPanel>
+                        </Border>
 
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="StopButton" Content="暂停" Width="86" Click="Stop_Click"/>
-                    <Button x:Name="StartButton" Content="开始" Width="96" Style="{StaticResource PrimaryButtonStyle}" Click="Start_Click"/>
-                </StackPanel>
-            </Grid>
-        </Border>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="翻译 API" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
+                                <TextBlock Text="服务" Style="{StaticResource CaptionTextStyle}"/>
+                                <ComboBox x:Name="ProviderCombo" SelectionChanged="ProviderCombo_SelectionChanged" Margin="0,4,0,10">
+                                    <ComboBoxItem Content="DeepSeek"/>
+                                    <ComboBoxItem Content="OpenAI Compatible"/>
+                                </ComboBox>
+                                <TextBlock Text="API URL" Style="{StaticResource CaptionTextStyle}"/>
+                                <TextBox x:Name="ApiUrlBox"
+                                         Margin="0,4,0,10"
+                                         TextChanged="TranslationSettings_Changed"
+                                         HorizontalScrollBarVisibility="Disabled"
+                                         VerticalScrollBarVisibility="Disabled"/>
+                                <TextBlock Text="API Key" Style="{StaticResource CaptionTextStyle}"/>
+                                <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,10" PasswordChanged="TranslationSettings_Changed"/>
+                                <TextBlock Text="Model" Style="{StaticResource CaptionTextStyle}"/>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="8"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ComboBox x:Name="ModelCombo" IsEditable="True" SelectionChanged="TranslationSettings_Changed"/>
+                                    <Button x:Name="FetchModelsButton" Grid.Column="2" Content="获取模型" Click="FetchModels_Click"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
 
-        <WrapPanel Grid.Row="1" Margin="0,0,0,12">
-            <Border Style="{StaticResource ChipBorderStyle}" Margin="0,0,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <Path Data="{StaticResource IconScan}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource CyanBrush}" Margin="0,0,6,0"/>
-                    <TextBlock Text="OneOCR 自动" Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource ChipBorderStyle}" Margin="0,0,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <Path Data="{StaticResource IconKey}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource SuccessBrush}" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="ApiStateChipText" Text="API 未配置" Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource ChipBorderStyle}" Margin="0,0,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <Path Data="{StaticResource IconDatabase}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource PrimaryBrush}" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="ModelStateChipText" Text="deepseek-v4-flash" Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource ChipBorderStyle}" Margin="0,0,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <Path Data="{StaticResource IconActivity}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource CyanBrush}" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="SamplingStateChipText" Text="巡逻 300ms" Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource ChipBorderStyle}" Margin="0,0,8,8">
-                <StackPanel Orientation="Horizontal">
-                    <Path Data="{StaticResource IconRadioTower}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource WarningBrush}" Margin="0,0,6,0"/>
-                    <TextBlock x:Name="QueueStateChipText" Text="队列 0" Foreground="{StaticResource TextSecondaryBrush}"/>
-                </StackPanel>
-            </Border>
-            <Border Style="{StaticResource ChipBorderStyle}" Margin="0,0,8,8">
-                <TextBlock x:Name="GlossaryStatusText" Text="Glossary" Foreground="{StaticResource SuccessBrush}"/>
-            </Border>
-        </WrapPanel>
-
-        <Grid Grid.Row="2">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="382"/>
-                <ColumnDefinition Width="18"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-            <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
-                <StackPanel>
-                    <Border x:Name="FirstRunPanel" Style="{StaticResource CardBorderStyle}" BorderBrush="#660A84FF" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="首次配置" Style="{StaticResource SectionHeaderTextStyle}"/>
-                            <TextBlock Text="选择 API、聊天区域和 overlay 后即可开始。" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                            <Button Content="完成首次配置" Style="{StaticResource PrimaryButtonStyle}" Margin="0,12,0,0" HorizontalAlignment="Left" Click="FinishFirstRun_Click"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="翻译 API" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
-                            <TextBlock Text="服务" Style="{StaticResource CaptionTextStyle}"/>
-                            <ComboBox x:Name="ProviderCombo" SelectionChanged="ProviderCombo_SelectionChanged" Margin="0,4,0,10">
-                                <ComboBoxItem Content="DeepSeek"/>
-                                <ComboBoxItem Content="OpenAI Compatible"/>
-                            </ComboBox>
-                            <TextBlock Text="API URL" Style="{StaticResource CaptionTextStyle}"/>
-                            <TextBox x:Name="ApiUrlBox" Margin="0,4,0,10" TextChanged="TranslationSettings_Changed"/>
-                            <TextBlock Text="API Key" Style="{StaticResource CaptionTextStyle}"/>
-                            <PasswordBox x:Name="ApiKeyBox" Margin="0,4,0,10" PasswordChanged="TranslationSettings_Changed"/>
-                            <TextBlock Text="Model" Style="{StaticResource CaptionTextStyle}"/>
-                            <Grid Margin="0,4,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <ComboBox x:Name="ModelCombo" IsEditable="True" SelectionChanged="TranslationSettings_Changed"/>
-                                <Button x:Name="FetchModelsButton" Grid.Column="2" Content="获取模型" Click="FetchModels_Click"/>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="聊天区域" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
-                            <TextBlock x:Name="RegionText" Text="未选择区域" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                            <Grid Margin="0,0,0,12">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition/>
-                                </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="翻译框设置" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="字号" Style="{StaticResource CaptionTextStyle}"/>
+                                        <Slider x:Name="FontSizeSlider" Minimum="14" Maximum="32" Value="20" ValueChanged="OverlaySettings_Changed"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="背景透明度" Style="{StaticResource CaptionTextStyle}"/>
+                                        <Slider x:Name="OpacitySlider" Minimum="0" Maximum="1" Value="0.86" ValueChanged="OverlaySettings_Changed"/>
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock x:Name="RegionText" Text="未选择区域" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                <WrapPanel Margin="0,0,0,10">
+                                    <Button Content="选择翻译区域" Click="SelectArea_Click"/>
+                                    <Button x:Name="AdjustFrameButton" Content="调整翻译框" Click="AdjustFrame_Click"/>
+                                </WrapPanel>
                                 <StackPanel>
-                                    <TextBlock Text="OCR 引擎" Style="{StaticResource CaptionTextStyle}"/>
-                                    <ComboBox x:Name="OcrEngineCombo" IsEnabled="False" SelectionChanged="OcrSettings_SelectionChanged" Margin="0,4,0,0">
-                                        <ComboBoxItem Content="OneOCR"/>
-                                    </ComboBox>
+                                    <CheckBox x:Name="KeepOverlayVisibleCheck"
+                                              Content="常态显示 overlay"
+                                              Style="{StaticResource SwitchCheckBoxStyle}"
+                                              Checked="KeepOverlayVisible_Changed"
+                                              Unchecked="KeepOverlayVisible_Changed"/>
+                                    <CheckBox x:Name="ClickThroughCheck"
+                                              Content="鼠标穿透"
+                                              Style="{StaticResource SwitchCheckBoxStyle}"
+                                              Checked="OverlaySettings_Changed"
+                                              Unchecked="OverlaySettings_Changed"/>
+                                    <CheckBox x:Name="ReplyInputBarCheck"
+                                              Content="显示回话输入条"
+                                              Style="{StaticResource SwitchCheckBoxStyle}"
+                                              Checked="OverlaySettings_Changed"
+                                              Unchecked="OverlaySettings_Changed"/>
                                 </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="识别模式" Style="{StaticResource CaptionTextStyle}"/>
-                                    <ComboBox x:Name="OcrLanguageCombo" IsEnabled="False" SelectionChanged="OcrSettings_SelectionChanged" Margin="0,4,0,0">
-                                        <ComboBoxItem Content="自动" Tag="auto"/>
-                                    </ComboBox>
-                                </StackPanel>
-                            </Grid>
-                            <WrapPanel>
-                                <Button Content="选择区域" Click="SelectArea_Click"/>
-                                <CheckBox x:Name="KeepOverlayVisibleCheck"
-                                          Content="常态显示 overlay"
-                                          VerticalAlignment="Center"
-                                          Margin="0,6,12,0"
-                                          Checked="KeepOverlayVisible_Changed"
-                                          Unchecked="KeepOverlayVisible_Changed"/>
-                                <Button x:Name="AdjustFrameButton" Content="调整 overlay" Click="AdjustFrame_Click"/>
-                            </WrapPanel>
-                            <TextBlock Text="固定使用 OneOCR 自动识别；输出固定为简体中文。" Foreground="{StaticResource TextMutedBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                        </StackPanel>
-                    </Border>
+                                <TextBlock x:Name="FrameAdjustHint"
+                                           Text="正在调整翻译框：拖动顶部横条移动，拖动右下角缩放。完成后点击“完成调整”。"
+                                           Foreground="{StaticResource WarningBrush}"
+                                           TextWrapping="Wrap"
+                                           Visibility="Collapsed"
+                                           Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
 
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="Overlay" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition Width="12"/>
-                                    <ColumnDefinition/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel>
-                                    <TextBlock Text="字号" Style="{StaticResource CaptionTextStyle}"/>
-                                    <Slider x:Name="FontSizeSlider" Minimum="14" Maximum="32" Value="20" ValueChanged="OverlaySettings_Changed"/>
-                                </StackPanel>
-                                <StackPanel Grid.Column="2">
-                                    <TextBlock Text="背景透明度" Style="{StaticResource CaptionTextStyle}"/>
-                                    <Slider x:Name="OpacitySlider" Minimum="0" Maximum="1" Value="0.86" ValueChanged="OverlaySettings_Changed"/>
-                                </StackPanel>
-                            </Grid>
-                            <CheckBox x:Name="ClickThroughCheck" Content="鼠标穿透" Checked="OverlaySettings_Changed" Unchecked="OverlaySettings_Changed"/>
-                            <CheckBox x:Name="ReplyInputBarCheck" Content="显示回话输入条" Checked="OverlaySettings_Changed" Unchecked="OverlaySettings_Changed"/>
-                            <TextBlock x:Name="FrameAdjustHint"
-                                       Text="正在调整翻译框：拖动顶部横条移动，拖动右下角缩放。完成后点击“完成调整”。"
-                                       Foreground="{StaticResource WarningBrush}"
-                                       TextWrapping="Wrap"
-                                       Visibility="Collapsed"
-                                       Margin="0,4,0,0"/>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
-                        <StackPanel>
-                            <TextBlock Text="回话输入" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition/>
-                                </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="回话输入" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
                                 <CheckBox x:Name="ReplyHotkeyCheck"
                                           Content="启用回话热键"
-                                          VerticalAlignment="Center"
+                                          Style="{StaticResource SwitchCheckBoxStyle}"
                                           Checked="ReplyHotkeySettings_Changed"
                                           Unchecked="ReplyHotkeySettings_Changed"/>
                                 <ComboBox x:Name="ReplyHotkeyCombo"
-                                          Grid.Column="2"
+                                          Margin="0,6,0,0"
                                           SelectionChanged="ReplyHotkeySettings_Changed">
                                     <ComboBoxItem Content="Ctrl+Shift+Enter"/>
                                     <ComboBoxItem Content="Ctrl+Shift+Space"/>
                                     <ComboBoxItem Content="Ctrl+Alt+Enter"/>
                                     <ComboBoxItem Content="Alt+Shift+Enter"/>
                                 </ComboBox>
-                            </Grid>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
-
-            <Grid Grid.Column="2">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="2*"/>
-                    <RowDefinition Height="16"/>
-                    <RowDefinition Height="3*"/>
-                </Grid.RowDefinitions>
-
-                <Grid Grid.Row="0" Margin="0,0,0,14">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition/>
-                        <ColumnDefinition Width="12"/>
-                        <ColumnDefinition/>
-                        <ColumnDefinition Width="12"/>
-                        <ColumnDefinition/>
-                    </Grid.ColumnDefinitions>
-
-                    <Border Style="{StaticResource CardBorderStyle}">
-                        <StackPanel>
-                            <TextBlock Text="延迟" Style="{StaticResource CaptionTextStyle}"/>
-                            <TextBlock x:Name="LatencyText" Text="0 ms" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource CyanBrush}" Margin="0,6,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
-                        <StackPanel>
-                            <TextBlock Text="运行状态" Style="{StaticResource CaptionTextStyle}"/>
-                            <TextBlock x:Name="StatusText" Text="待机" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,6,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Grid.Column="4" Style="{StaticResource CardBorderStyle}">
-                        <StackPanel>
-                            <TextBlock Text="翻译队列" Style="{StaticResource CaptionTextStyle}"/>
-                            <TextBlock x:Name="QueueMetricText" Text="0" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0"/>
-                        </StackPanel>
-                    </Border>
-                </Grid>
-
-                <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="0">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <DockPanel Margin="16,14">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconMessage}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource PrimaryBrush}" Margin="0,0,8,0"/>
-                                <TextBlock Text="最近翻译" Style="{StaticResource SectionHeaderTextStyle}"/>
                             </StackPanel>
-                            <TextBlock DockPanel.Dock="Right" Text="按 Seq 排序回填" Foreground="{StaticResource TextMutedBrush}" FontSize="12"/>
-                        </DockPanel>
-                        <ListBox x:Name="RecentRecordList" Grid.Row="1" Padding="12,0,12,12" Background="Transparent">
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,0,0,1" Padding="4,8">
-                                        <StackPanel>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{Binding Speaker}" Foreground="{StaticResource CyanBrush}" FontWeight="SemiBold"/>
-                                                <TextBlock Text="  #" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="6,1,0,0"/>
-                                                <TextBlock Text="{Binding Seq}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,1,0,0"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding TranslatedText}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,3,0,0"/>
-                                            <TextBlock Text="{Binding SourceText}" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
-                    </Grid>
-                </Border>
+                        </Border>
 
-                <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Padding="0">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-                        <DockPanel Margin="16,14">
-                            <StackPanel Orientation="Horizontal">
-                                <Path Data="{StaticResource IconActivity}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource SuccessBrush}" Margin="0,0,8,0"/>
-                                <TextBlock Text="事件流" Style="{StaticResource SectionHeaderTextStyle}"/>
-                            </StackPanel>
-                            <Button DockPanel.Dock="Right" Content="清空" Width="68" Height="30" Click="ClearLog_Click"/>
-                        </DockPanel>
-                        <ListBox x:Name="LogList" Grid.Row="1" Padding="12" Background="Transparent"/>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Grid>
+                        <Expander Margin="0,0,0,12" Foreground="{StaticResource TextBrush}">
+                            <Expander.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <Path Data="{StaticResource IconBug}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource WarningBrush}" Margin="0,0,8,0"/>
+                                    <TextBlock Text="Beta Tools" FontWeight="SemiBold"/>
+                                </StackPanel>
+                            </Expander.Header>
+                            <Border Style="{StaticResource CardBorderStyle}" Margin="0,8,0,0">
+                                <StackPanel>
+                                    <WrapPanel Margin="0,0,0,10">
+                                        <Button Content="打开数据目录" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenDataDirectory_Click"/>
+                                        <Button Content="打开日志" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenRuntimeLog_Click"/>
+                                        <Button Content="打开去重日志" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenDedupeLog_Click"/>
+                                        <Button Content="导出诊断" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="ExportDiagnostics_Click"/>
+                                        <Button Content="清除本机数据" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,8" Click="ClearUserData_Click"/>
+                                    </WrapPanel>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="10"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ComboBox x:Name="FrameCaseCombo" SelectedIndex="0">
+                                            <ComboBoxItem Content="Case 1 韩语短消息/冷启动" Tag="case01-korean-short-cold-start"/>
+                                            <ComboBoxItem Content="Case 2 多人陆续发言" Tag="case02-multi-speaker-burst"/>
+                                            <ComboBoxItem Content="Case 3 打开聊天历史" Tag="case03-open-chat-history"/>
+                                            <ComboBoxItem Content="Case 4 OCR 字符抖动" Tag="case04-ocr-character-jitter"/>
+                                            <ComboBoxItem Content="Case 5 韩语空格抖动" Tag="case05-korean-spacing-jitter"/>
+                                            <ComboBoxItem Content="Case 6 系统提示交错" Tag="case06-system-player-mixed"/>
+                                            <ComboBoxItem Content="Case 7 淡化后同文本再发" Tag="case07-fade-then-repeat"/>
+                                        </ComboBox>
+                                        <Button x:Name="FrameRecordingButton"
+                                                Grid.Column="2"
+                                                Content="录制 Case"
+                                                Margin="0"
+                                                Click="FrameRecording_Click"/>
+                                    </Grid>
+                                    <CheckBox x:Name="DedupeDebugCheck"
+                                              Content="记录去重调试日志"
+                                              Style="{StaticResource SwitchCheckBoxStyle}"
+                                              Checked="BetaDebugSettings_Changed"
+                                              Unchecked="BetaDebugSettings_Changed"/>
+                                    <CheckBox x:Name="SaveScreenshotsCheck"
+                                              Content="翻译时保存原始截图"
+                                              Style="{StaticResource SwitchCheckBoxStyle}"
+                                              Checked="BetaDebugSettings_Changed"
+                                              Unchecked="BetaDebugSettings_Changed"/>
+                                </StackPanel>
+                            </Border>
+                        </Expander>
+                    </StackPanel>
+                </ScrollViewer>
 
-        <Expander Grid.Row="3" Margin="0,14,0,0" Foreground="{StaticResource TextBrush}">
-            <Expander.Header>
-                <StackPanel Orientation="Horizontal">
-                    <Path Data="{StaticResource IconBug}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource WarningBrush}" Margin="0,0,8,0"/>
-                    <TextBlock Text="Beta Tools" FontWeight="SemiBold"/>
-                    <TextBlock Text="  诊断、录制与日志" Foreground="{StaticResource TextMutedBrush}"/>
-                </StackPanel>
-            </Expander.Header>
-            <Border Style="{StaticResource CardBorderStyle}" Margin="0,8,0,0">
-                <StackPanel>
-                    <WrapPanel Margin="0,0,0,10">
-                        <Button Content="打开数据目录" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenDataDirectory_Click"/>
-                        <Button Content="打开日志" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenRuntimeLog_Click"/>
-                        <Button Content="打开去重日志" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenDedupeLog_Click"/>
-                        <Button Content="导出诊断" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="ExportDiagnostics_Click"/>
-                        <Button Content="清除本机数据" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,8" Click="ClearUserData_Click"/>
-                    </WrapPanel>
-                    <Grid Margin="0,0,0,10">
+                <Grid Grid.Column="2">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="2*"/>
+                        <RowDefinition Height="16"/>
+                        <RowDefinition Height="3*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Margin="0,0,0,14">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition/>
                         </Grid.ColumnDefinitions>
-                        <ComboBox x:Name="FrameCaseCombo" SelectedIndex="0">
-                            <ComboBoxItem Content="Case 1 韩语短消息/冷启动" Tag="case01-korean-short-cold-start"/>
-                            <ComboBoxItem Content="Case 2 多人陆续发言" Tag="case02-multi-speaker-burst"/>
-                            <ComboBoxItem Content="Case 3 打开聊天历史" Tag="case03-open-chat-history"/>
-                            <ComboBoxItem Content="Case 4 OCR 字符抖动" Tag="case04-ocr-character-jitter"/>
-                            <ComboBoxItem Content="Case 5 韩语空格抖动" Tag="case05-korean-spacing-jitter"/>
-                            <ComboBoxItem Content="Case 6 系统提示交错" Tag="case06-system-player-mixed"/>
-                            <ComboBoxItem Content="Case 7 淡化后同文本再发" Tag="case07-fade-then-repeat"/>
-                        </ComboBox>
-                        <Button x:Name="FrameRecordingButton"
-                                Grid.Column="2"
-                                Content="录制 Case"
-                                Margin="0"
-                                Click="FrameRecording_Click"/>
+
+                        <Border Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="延迟" Style="{StaticResource CaptionTextStyle}"/>
+                                <TextBlock x:Name="LatencyText" Text="0 ms" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource CyanBrush}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="运行状态" Style="{StaticResource CaptionTextStyle}"/>
+                                <TextBlock x:Name="StatusText" Text="待机" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource TextBrush}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="4" Style="{StaticResource CardBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="翻译队列" Style="{StaticResource CaptionTextStyle}"/>
+                                <TextBlock x:Name="QueueMetricText" Text="0" FontSize="24" FontWeight="SemiBold" Foreground="{StaticResource SuccessBrush}" Margin="0,6,0,0"/>
+                            </StackPanel>
+                        </Border>
                     </Grid>
-                    <WrapPanel>
-                        <CheckBox x:Name="DedupeDebugCheck"
-                                  Content="记录去重调试日志"
-                                  Checked="BetaDebugSettings_Changed"
-                                  Unchecked="BetaDebugSettings_Changed"
-                                  Margin="0,0,18,0"/>
-                        <CheckBox x:Name="SaveScreenshotsCheck"
-                                  Content="翻译时保存原始截图"
-                                  Checked="BetaDebugSettings_Changed"
-                                  Unchecked="BetaDebugSettings_Changed"/>
-                    </WrapPanel>
-                </StackPanel>
-            </Border>
-        </Expander>
+
+                    <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}" Padding="0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid Margin="16,14">
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconMessage}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource PrimaryBrush}" Margin="0,0,8,0"/>
+                                    <TextBlock Text="最近翻译" Style="{StaticResource SectionHeaderTextStyle}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </Grid>
+                            <ListBox x:Name="RecentRecordList" Grid.Row="1" Padding="12,0,12,12" Background="Transparent">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{StaticResource BorderSoftBrush}" BorderThickness="0,0,0,1" Padding="4,8">
+                                            <StackPanel>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding Speaker}" Foreground="{StaticResource CyanBrush}" FontWeight="SemiBold"/>
+                                                    <TextBlock Text="  #" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="6,1,0,0"/>
+                                                    <TextBlock Text="{Binding Seq}" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,1,0,0"/>
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding TranslatedText}" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,3,0,0"/>
+                                                <TextBlock Text="{Binding SourceText}" TextWrapping="Wrap" Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <Border Grid.Row="3" Style="{StaticResource CardBorderStyle}" Padding="0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Grid Margin="16,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Path Data="{StaticResource IconActivity}" Style="{StaticResource IconPathStyle}" Stroke="{StaticResource SuccessBrush}" Margin="0,0,8,0"/>
+                                    <TextBlock Text="事件流" Style="{StaticResource SectionHeaderTextStyle}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="清空" Width="68" Height="30" Margin="0" Click="ClearLog_Click"/>
+                            </Grid>
+                            <ListBox x:Name="LogList" Grid.Row="1" Padding="12" Background="Transparent"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Grid>
         </Grid>
     </Grid>
 </Window>
