@@ -80,6 +80,7 @@ public partial class MainWindow : Window
         _coordinator = CreateCoordinator();
         LoadSettingsToUi();
         EnsureOverlay();
+        ApplyOverlayVisibilityPreference(activate: false);
         ApplyRunningState();
         ApplyFrameAdjustmentState();
         AddLog("就绪。正式测试建议使用 DeepSeek API。");
@@ -119,6 +120,7 @@ public partial class MainWindow : Window
             FontSizeSlider.Value = settings.OverlayFontSize;
             OpacitySlider.Value = settings.OverlayOpacity;
             ClickThroughCheck.IsChecked = settings.OverlayClickThrough;
+            KeepOverlayVisibleCheck.IsChecked = settings.KeepOverlayVisible;
             ReplyInputBarCheck.IsChecked = settings.ShowReplyInputBar;
             ReplyHotkeyCheck.IsChecked = settings.EnableReplyHotkey;
             SelectCombo(ReplyHotkeyCombo, settings.ReplyHotkey);
@@ -147,6 +149,7 @@ public partial class MainWindow : Window
         settings.OverlayFontSize = FontSizeSlider.Value;
         settings.OverlayOpacity = OpacitySlider.Value;
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
+        settings.KeepOverlayVisible = KeepOverlayVisibleCheck.IsChecked == true;
         settings.ShowReplyInputBar = ReplyInputBarCheck.IsChecked == true;
         settings.EnableReplyHotkey = ReplyHotkeyCheck.IsChecked == true;
         settings.ReplyHotkey = GetComboText(ReplyHotkeyCombo);
@@ -284,6 +287,51 @@ public partial class MainWindow : Window
         ApplyReplyHotkeyRegistration();
     }
 
+    private void TitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2)
+        {
+            ToggleMaximizeRestore();
+            return;
+        }
+
+        if (e.ButtonState != MouseButtonState.Pressed)
+        {
+            return;
+        }
+
+        try
+        {
+            DragMove();
+        }
+        catch (InvalidOperationException)
+        {
+            // DragMove can throw if the mouse button state changes during the call.
+        }
+    }
+
+    private void MinimizeWindow_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    private void MaximizeRestoreWindow_Click(object sender, RoutedEventArgs e)
+    {
+        ToggleMaximizeRestore();
+    }
+
+    private void CloseWindow_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
+    }
+
+    private void ToggleMaximizeRestore()
+    {
+        WindowState = WindowState == WindowState.Maximized
+            ? WindowState.Normal
+            : WindowState.Maximized;
+    }
+
     private void OverlaySettings_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         AutoSaveSettings();
@@ -371,6 +419,20 @@ public partial class MainWindow : Window
         EnsureOverlay();
         ApplyOverlaySettings();
         _overlayController.ShowAndActivate();
+    }
+
+    private void KeepOverlayVisible_Changed(object sender, RoutedEventArgs e)
+    {
+        if (!IsLoaded || _isLoadingSettings)
+        {
+            return;
+        }
+
+        SaveSettingsFromUi();
+        ApplyOverlayVisibilityPreference(activate: true);
+        AddLog(_config.Settings.KeepOverlayVisible
+            ? "已切换为常态显示 overlay。"
+            : "已切换为默认隐藏 overlay。");
     }
 
     private void AdjustFrame_Click(object sender, RoutedEventArgs e)
@@ -980,7 +1042,14 @@ public partial class MainWindow : Window
             _pausedAt = DateTime.Now;
             _overlayHiddenByIdle = false;
             _consecutiveNoChatFrames = 0;
-            _overlayController.Hide();
+            if (_config.Settings.KeepOverlayVisible)
+            {
+                ApplyOverlayVisibilityPreference(activate: false);
+            }
+            else
+            {
+                _overlayController.Hide();
+            }
         }
     }
 
@@ -1000,6 +1069,33 @@ public partial class MainWindow : Window
     private void ApplyOverlaySettings()
     {
         _overlayController.ApplySettings(_config.Settings);
+    }
+
+    private void ApplyOverlayVisibilityPreference(bool activate)
+    {
+        if (_config.Settings.KeepOverlayVisible)
+        {
+            EnsureOverlay();
+            ApplyOverlaySettings();
+            _overlayController.UpdateRecords(_records);
+            if (activate)
+            {
+                _overlayController.ShowAndActivate();
+            }
+            else
+            {
+                _overlayController.Show();
+            }
+
+            _overlayHiddenByIdle = false;
+            return;
+        }
+
+        if (!_isAdjustingTranslationFrame && !_isReplyModeActive)
+        {
+            _overlayController.Hide();
+            _overlayHiddenByIdle = true;
+        }
     }
 
     private void Overlay_BoundsChanged(object? sender, EventArgs e)
@@ -1282,6 +1378,11 @@ public partial class MainWindow : Window
     private void MaybeHideOverlayAfterIdle()
     {
         if (!_isRunning || !_overlayController.IsCreated)
+        {
+            return;
+        }
+
+        if (_config.Settings.KeepOverlayVisible)
         {
             return;
         }

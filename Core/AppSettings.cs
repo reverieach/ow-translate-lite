@@ -26,6 +26,7 @@ public sealed class AppSettings
     public double OverlayOpacity { get; set; } = 0.153;
     public double OverlayFontSize { get; set; } = 14.92;
     public bool OverlayClickThrough { get; set; } = true;
+    public bool KeepOverlayVisible { get; set; }
     public bool ShowReplyInputBar { get; set; } = true;
     public bool EnableDedupeDebugLog { get; set; }
     public bool SaveScreenshotsOnTranslation { get; set; }

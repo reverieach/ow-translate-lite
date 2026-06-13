@@ -111,6 +111,7 @@ public sealed class DiagnosticsService
         builder.AppendLine($"OverlayOpacity: {settings.OverlayOpacity:0.###}");
         builder.AppendLine($"OverlayFontSize: {settings.OverlayFontSize:0.###}");
         builder.AppendLine($"OverlayClickThrough: {settings.OverlayClickThrough}");
+        builder.AppendLine($"KeepOverlayVisible: {settings.KeepOverlayVisible}");
         builder.AppendLine($"ShowReplyInputBar: {settings.ShowReplyInputBar}");
         builder.AppendLine($"EnableDedupeDebugLog: {settings.EnableDedupeDebugLog}");
         builder.AppendLine($"OverlayBounds: {FormatBounds(settings)}");
