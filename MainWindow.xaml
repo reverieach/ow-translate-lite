@@ -159,21 +159,42 @@
                                     <Button x:Name="AdjustFrameButton" Content="调整翻译框" Click="AdjustFrame_Click"/>
                                 </WrapPanel>
                                 <StackPanel>
-                                    <CheckBox x:Name="KeepOverlayVisibleCheck"
-                                              Content="常态显示 overlay"
-                                              Style="{StaticResource SwitchCheckBoxStyle}"
-                                              Checked="KeepOverlayVisible_Changed"
-                                              Unchecked="KeepOverlayVisible_Changed"/>
-                                    <CheckBox x:Name="ClickThroughCheck"
-                                              Content="鼠标穿透"
-                                              Style="{StaticResource SwitchCheckBoxStyle}"
-                                              Checked="OverlaySettings_Changed"
-                                              Unchecked="OverlaySettings_Changed"/>
-                                    <CheckBox x:Name="ReplyInputBarCheck"
-                                              Content="显示回话输入条"
-                                              Style="{StaticResource SwitchCheckBoxStyle}"
-                                              Checked="OverlaySettings_Changed"
-                                              Unchecked="OverlaySettings_Changed"/>
+                                    <Grid Margin="0,0,0,8" MinHeight="30">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="常态显示 overlay" VerticalAlignment="Center"/>
+                                        <CheckBox x:Name="KeepOverlayVisibleCheck"
+                                                  Grid.Column="1"
+                                                  Style="{StaticResource SwitchCheckBoxStyle}"
+                                                  Checked="KeepOverlayVisible_Changed"
+                                                  Unchecked="KeepOverlayVisible_Changed"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8" MinHeight="30">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="鼠标穿透" VerticalAlignment="Center"/>
+                                        <CheckBox x:Name="ClickThroughCheck"
+                                                  Grid.Column="1"
+                                                  Style="{StaticResource SwitchCheckBoxStyle}"
+                                                  Checked="OverlaySettings_Changed"
+                                                  Unchecked="OverlaySettings_Changed"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8" MinHeight="30">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="显示回话输入条" VerticalAlignment="Center"/>
+                                        <CheckBox x:Name="ReplyInputBarCheck"
+                                                  Grid.Column="1"
+                                                  Style="{StaticResource SwitchCheckBoxStyle}"
+                                                  Checked="OverlaySettings_Changed"
+                                                  Unchecked="OverlaySettings_Changed"/>
+                                    </Grid>
                                 </StackPanel>
                                 <TextBlock x:Name="FrameAdjustHint"
                                            Text="正在调整翻译框：拖动顶部横条移动，拖动右下角缩放。完成后点击“完成调整”。"
@@ -187,11 +208,18 @@
                         <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
                             <StackPanel>
                                 <TextBlock Text="回话输入" Style="{StaticResource SectionHeaderTextStyle}" Margin="0,0,0,10"/>
-                                <CheckBox x:Name="ReplyHotkeyCheck"
-                                          Content="启用回话热键"
-                                          Style="{StaticResource SwitchCheckBoxStyle}"
-                                          Checked="ReplyHotkeySettings_Changed"
-                                          Unchecked="ReplyHotkeySettings_Changed"/>
+                                <Grid MinHeight="30">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="启用回话热键" VerticalAlignment="Center"/>
+                                    <CheckBox x:Name="ReplyHotkeyCheck"
+                                              Grid.Column="1"
+                                              Style="{StaticResource SwitchCheckBoxStyle}"
+                                              Checked="ReplyHotkeySettings_Changed"
+                                              Unchecked="ReplyHotkeySettings_Changed"/>
+                                </Grid>
                                 <ComboBox x:Name="ReplyHotkeyCombo"
                                           Margin="0,6,0,0"
                                           SelectionChanged="ReplyHotkeySettings_Changed">
@@ -240,16 +268,30 @@
                                                 Margin="0"
                                                 Click="FrameRecording_Click"/>
                                     </Grid>
-                                    <CheckBox x:Name="DedupeDebugCheck"
-                                              Content="记录去重调试日志"
-                                              Style="{StaticResource SwitchCheckBoxStyle}"
-                                              Checked="BetaDebugSettings_Changed"
-                                              Unchecked="BetaDebugSettings_Changed"/>
-                                    <CheckBox x:Name="SaveScreenshotsCheck"
-                                              Content="翻译时保存原始截图"
-                                              Style="{StaticResource SwitchCheckBoxStyle}"
-                                              Checked="BetaDebugSettings_Changed"
-                                              Unchecked="BetaDebugSettings_Changed"/>
+                                    <Grid Margin="0,0,0,8" MinHeight="30">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="记录去重调试日志" VerticalAlignment="Center"/>
+                                        <CheckBox x:Name="DedupeDebugCheck"
+                                                  Grid.Column="1"
+                                                  Style="{StaticResource SwitchCheckBoxStyle}"
+                                                  Checked="BetaDebugSettings_Changed"
+                                                  Unchecked="BetaDebugSettings_Changed"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8" MinHeight="30">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="翻译时保存原始截图" VerticalAlignment="Center"/>
+                                        <CheckBox x:Name="SaveScreenshotsCheck"
+                                                  Grid.Column="1"
+                                                  Style="{StaticResource SwitchCheckBoxStyle}"
+                                                  Checked="BetaDebugSettings_Changed"
+                                                  Unchecked="BetaDebugSettings_Changed"/>
+                                    </Grid>
                                 </StackPanel>
                             </Border>
                         </Expander>
