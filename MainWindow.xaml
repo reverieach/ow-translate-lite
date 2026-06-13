@@ -91,7 +91,7 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,8,0">
+                <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0">
                     <StackPanel>
                         <Border x:Name="FirstRunPanel" Style="{StaticResource CardBorderStyle}" BorderBrush="#660A84FF" Margin="0,0,0,12">
                             <StackPanel>

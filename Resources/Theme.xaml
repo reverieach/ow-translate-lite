@@ -501,16 +501,18 @@
     </Style>
 
     <Style x:Key="ScrollBarThumbStyle" TargetType="{x:Type Thumb}">
+        <Setter Property="MinHeight" Value="36"/>
+        <Setter Property="MinWidth" Value="36"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type Thumb}">
                     <Border x:Name="ThumbChrome"
-                            Background="#9A8A94A3"
-                            CornerRadius="6"
-                            Margin="3,2"/>
+                            Background="#B58A94A3"
+                            CornerRadius="5"
+                            Margin="3"/>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
-                            <Setter TargetName="ThumbChrome" Property="Background" Value="#B0A8B1BF"/>
+                            <Setter TargetName="ThumbChrome" Property="Background" Value="#D0A8B1BF"/>
                         </Trigger>
                         <Trigger Property="IsDragging" Value="True">
                             <Setter TargetName="ThumbChrome" Property="Background" Value="{StaticResource PrimaryBrush}"/>
@@ -522,16 +524,16 @@
     </Style>
 
     <Style TargetType="{x:Type ScrollBar}">
-        <Setter Property="Width" Value="14"/>
-        <Setter Property="Height" Value="14"/>
+        <Setter Property="Width" Value="12"/>
+        <Setter Property="Height" Value="12"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ScrollBar}">
                     <Border x:Name="Root"
-                            Background="#2A222832"
-                            CornerRadius="7"
-                            Padding="1">
+                            Background="#4A222832"
+                            CornerRadius="6"
+                            Padding="0">
                         <Track x:Name="PART_Track"
                                IsDirectionReversed="True"
                                ViewportSize="{TemplateBinding ViewportSize}"
@@ -551,12 +553,12 @@
                     </Border>
                     <ControlTemplate.Triggers>
                         <Trigger Property="Orientation" Value="Horizontal">
-                            <Setter TargetName="Root" Property="Height" Value="14"/>
+                            <Setter TargetName="Root" Property="Height" Value="12"/>
                             <Setter TargetName="Root" Property="MinWidth" Value="48"/>
                             <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
                         </Trigger>
                         <Trigger Property="Orientation" Value="Vertical">
-                            <Setter TargetName="Root" Property="Width" Value="14"/>
+                            <Setter TargetName="Root" Property="Width" Value="12"/>
                             <Setter TargetName="Root" Property="MinHeight" Value="48"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
