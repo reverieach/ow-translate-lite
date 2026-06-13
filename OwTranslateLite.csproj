@@ -17,8 +17,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
-    <Version>0.2.0-beta.3</Version>
-    <FileVersion>0.2.0.0</FileVersion>
+    <Version>0.2.0-beta.4-ui</Version>
+    <FileVersion>0.2.0.4</FileVersion>
     <AssemblyVersion>0.2.0.0</AssemblyVersion>
     <Company>OWTranslatorLite</Company>
     <Product>OW Translator Lite</Product>
