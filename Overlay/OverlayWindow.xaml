@@ -12,15 +12,15 @@
         Width="520"
         Height="180">
     <Window.Resources>
-        <SolidColorBrush x:Key="ReplyComboForegroundBrush" Color="#F5F7FA"/>
-        <SolidColorBrush x:Key="ReplyComboAccentBrush" Color="#64D2FF"/>
+        <SolidColorBrush x:Key="ReplyComboForegroundBrush" Color="#D7E7F2"/>
+        <SolidColorBrush x:Key="ReplyComboAccentBrush" Color="#8EDCFF"/>
         <SolidColorBrush x:Key="OverlayMutedBrush" Color="#A7AFBA"/>
         <SolidColorBrush x:Key="OverlayPanelBrush" Color="#D40B0C10"/>
         <SolidColorBrush x:Key="OverlayInputBrush" Color="#E0161820"/>
         <SolidColorBrush x:Key="OverlayLineBrush" Color="#33FFFFFF"/>
 
         <Style x:Key="ReplyComboBoxItemStyle" TargetType="{x:Type ComboBoxItem}">
-            <Setter Property="Foreground" Value="{StaticResource ReplyComboForegroundBrush}"/>
+            <Setter Property="Foreground" Value="#D7E7F2"/>
             <Setter Property="Background" Value="#171A22"/>
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
@@ -34,7 +34,7 @@
 
         <Style x:Key="ReplyComboBoxStyle" TargetType="{x:Type ComboBox}">
             <Setter Property="Foreground" Value="{StaticResource ReplyComboForegroundBrush}"/>
-            <Setter Property="BorderBrush" Value="#4464D2FF"/>
+            <Setter Property="BorderBrush" Value="#2CFFFFFF"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,0"/>
             <Setter Property="ItemContainerStyle" Value="{StaticResource ReplyComboBoxItemStyle}"/>
@@ -49,22 +49,23 @@
                                 <ToggleButton.Template>
                                     <ControlTemplate TargetType="{x:Type ToggleButton}">
                                         <Border x:Name="Chrome"
-                                                CornerRadius="13"
+                                                CornerRadius="12"
                                                 Background="{TemplateBinding Background}"
                                                 BorderBrush="{TemplateBinding BorderBrush}"
                                                 BorderThickness="{TemplateBinding BorderThickness}">
                                             <Grid>
-                                                <ContentPresenter Margin="8,0,18,0"
-                                                                  VerticalAlignment="Center"
-                                                                  HorizontalAlignment="Center"
-                                                                  RecognizesAccessKey="True"
-                                                                  Content="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"/>
+                                                <TextBlock Text="{Binding SelectionBoxItem, RelativeSource={RelativeSource AncestorType={x:Type ComboBox}}}"
+                                                           Foreground="{StaticResource ReplyComboForegroundBrush}"
+                                                           FontWeight="SemiBold"
+                                                           Margin="8,0,18,0"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"/>
                                                 <Path Data="{StaticResource IconChevronDown}"
                                                       Stroke="{StaticResource ReplyComboAccentBrush}"
-                                                      StrokeThickness="2"
+                                                      StrokeThickness="1.8"
                                                       Stretch="Uniform"
-                                                      Width="11"
-                                                      Height="11"
+                                                      Width="10"
+                                                      Height="10"
                                                       HorizontalAlignment="Right"
                                                       VerticalAlignment="Center"
                                                       Margin="0,0,8,0"/>
@@ -80,7 +81,7 @@
                                    Placement="Bottom"
                                    PopupAnimation="Fade">
                                 <Border Background="#F0141720"
-                                        BorderBrush="#4464D2FF"
+                                        BorderBrush="#3AFFFFFF"
                                         BorderThickness="1"
                                         CornerRadius="10"
                                         Padding="4"
@@ -204,14 +205,14 @@
                     Visibility="Visible"
                     Margin="0,10,30,0"
                     Padding="5"
-                    Background="#A0101116"
-                    BorderBrush="{StaticResource OverlayLineBrush}"
+                    Background="#B012141B"
+                    BorderBrush="#2FFFFFFF"
                     BorderThickness="1"
                     CornerRadius="18">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="82"/>
-                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="6"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
                     <ComboBox x:Name="ReplyTargetCombo"

@@ -4,6 +4,8 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using OwTranslateLite.Core;
 using OwTranslateLite.Ocr;
 using OwTranslateLite.Overlay;
@@ -15,6 +17,20 @@ namespace OwTranslateLite;
 
 public partial class MainWindow : Window
 {
+    private static readonly DependencyProperty SmoothScrollAttachedProperty =
+        DependencyProperty.RegisterAttached(
+            "SmoothScrollAttached",
+            typeof(bool),
+            typeof(MainWindow),
+            new PropertyMetadata(false));
+
+    private static readonly DependencyProperty SmoothVerticalOffsetProperty =
+        DependencyProperty.RegisterAttached(
+            "SmoothVerticalOffset",
+            typeof(double),
+            typeof(MainWindow),
+            new PropertyMetadata(0.0, OnSmoothVerticalOffsetChanged));
+
     private static readonly TimeSpan OverlayIdleHideDelay = TimeSpan.FromSeconds(6);
     private const int MinSamplingIntervalMs = 250;
     private const int MaxSamplingIntervalMs = 300;
@@ -85,6 +101,7 @@ public partial class MainWindow : Window
         AddLog("就绪。正式测试建议使用 DeepSeek API。");
         ApplyReplyHotkeyRegistration();
         ShowQuickStartIfNeeded();
+        Dispatcher.BeginInvoke(() => AttachSmoothScrolling(this));
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -1489,6 +1506,61 @@ public partial class MainWindow : Window
 
     private static bool IsFinite(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static void AttachSmoothScrolling(DependencyObject root)
+    {
+        int childCount = VisualTreeHelper.GetChildrenCount(root);
+        for (int i = 0; i < childCount; i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer viewer &&
+                !Equals(viewer.GetValue(SmoothScrollAttachedProperty), true))
+            {
+                viewer.SetValue(SmoothScrollAttachedProperty, true);
+                viewer.SetValue(SmoothVerticalOffsetProperty, viewer.VerticalOffset);
+                viewer.PreviewMouseWheel += SmoothScrollViewer_PreviewMouseWheel;
+            }
+
+            AttachSmoothScrolling(child);
+        }
+    }
+
+    private static void SmoothScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer viewer ||
+            !viewer.IsMouseOver ||
+            viewer.ScrollableHeight <= 0)
+        {
+            return;
+        }
+
+        double current = (double)viewer.GetValue(SmoothVerticalOffsetProperty);
+        if (Math.Abs(current - viewer.VerticalOffset) > 80)
+        {
+            current = viewer.VerticalOffset;
+        }
+
+        double target = Math.Clamp(current - e.Delta * 0.45, 0, viewer.ScrollableHeight);
+        DoubleAnimation animation = new()
+        {
+            From = viewer.VerticalOffset,
+            To = target,
+            Duration = TimeSpan.FromMilliseconds(150),
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+
+        viewer.SetValue(SmoothVerticalOffsetProperty, current);
+        viewer.BeginAnimation(SmoothVerticalOffsetProperty, animation, HandoffBehavior.SnapshotAndReplace);
+        e.Handled = true;
+    }
+
+    private static void OnSmoothVerticalOffsetChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is ScrollViewer viewer)
+        {
+            viewer.ScrollToVerticalOffset((double)e.NewValue);
+        }
+    }
 
     private static void OpenShellPath(string path)
     {
