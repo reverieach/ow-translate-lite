@@ -874,7 +874,7 @@ public partial class MainWindow : Window
             }
 
             _translationQueueStatus.SetQueuedCount(_translationQueue.Count);
-            Dispatcher.Invoke(RefreshStatusChips);
+            Dispatcher.Invoke(() => RefreshStatusChips());
         }
 
         return Task.FromResult(batch);
