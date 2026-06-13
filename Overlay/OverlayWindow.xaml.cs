@@ -249,19 +249,19 @@ public partial class OverlayWindow : Window
     private static SolidColorBrush CreateBackgroundBrush(double opacity)
     {
         byte alpha = (byte)(Math.Clamp(opacity, 0.0, 1.0) * 255);
-        return new SolidColorBrush(MediaColor.FromArgb(alpha, 7, 9, 10));
+        return new SolidColorBrush(MediaColor.FromArgb(alpha, 11, 12, 16));
     }
 
     private static SolidColorBrush CreateBorderBrush(double opacity)
     {
-        byte alpha = (byte)(Math.Clamp(opacity, 0.0, 1.0) * 120);
-        return new SolidColorBrush(MediaColor.FromArgb(alpha, 120, 217, 149));
+        byte alpha = (byte)(Math.Clamp(opacity, 0.0, 1.0) * 110);
+        return new SolidColorBrush(MediaColor.FromArgb(alpha, 92, 157, 255));
     }
 
     private static SolidColorBrush CreateInputBoxBrush(double opacity)
     {
         byte alpha = (byte)(Math.Clamp(opacity + 0.08, 0.16, 0.72) * 255);
-        return new SolidColorBrush(MediaColor.FromArgb(alpha, 7, 9, 10));
+        return new SolidColorBrush(MediaColor.FromArgb(alpha, 22, 24, 32));
     }
 
     private void ApplyClickThrough(bool enabled)
