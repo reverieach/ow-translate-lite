@@ -176,14 +176,9 @@
                             <TextBlock Text="打开 DeepSeek 开放平台的 API Keys 页面，点击创建 API key。创建后只会显示一次，请立即复制。"
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,6,0,12"/>
-                            <StackPanel>
-                                <Border Style="{StaticResource GuideImageFrameStyle}" Margin="0,0,0,10">
-                                    <Image Source="Resources/QuickStart/deepseek-api-keys.png" Style="{StaticResource GuideImageStyle}" MaxHeight="520"/>
-                                </Border>
-                                <Border Style="{StaticResource GuideImageFrameStyle}" HorizontalAlignment="Left">
-                                    <Image Source="Resources/QuickStart/deepseek-create-key.png" Style="{StaticResource GuideImageStyle}" MaxHeight="260"/>
-                                </Border>
-                            </StackPanel>
+                            <Border Style="{StaticResource GuideImageFrameStyle}">
+                                <Image Source="Resources/QuickStart/deepseek-api-keys.png" Style="{StaticResource GuideImageStyle}" MaxHeight="520"/>
+                            </Border>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -201,7 +196,11 @@
                             <TextBlock Text="填入程序并获取模型" FontSize="18" FontWeight="SemiBold"/>
                             <TextBlock Text="服务选择 DeepSeek，API URL 使用 https://api.deepseek.com，把刚复制的 API Key 粘贴进去。点击“获取模型”后选择 deepseek-v4-flash。"
                                        Style="{StaticResource GuideBodyTextStyle}"
-                                       Margin="0,6,0,12"/>
+                                       Margin="0,6,0,6"/>
+                            <TextBlock Text="注意：DeepSeek API 按量计费，需要在平台充值余额后才能稳定使用；聊天翻译用量通常很小，实际费用非常便宜。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       Margin="0,0,0,12"/>
                             <Border Style="{StaticResource GuideImageFrameStyle}">
                                 <Image Source="Resources/QuickStart/app-api-config.png" Style="{StaticResource GuideImageStyle}" MaxHeight="520"/>
                             </Border>
