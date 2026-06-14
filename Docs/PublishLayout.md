@@ -1,18 +1,43 @@
 # Publish Layout Notes
 
-This project is currently a self-contained Windows x64 WPF app. For self-contained .NET desktop apps, many runtime and framework DLLs are expected beside the executable. Moving those DLLs into arbitrary subfolders can break host/dependency resolution.
+OW Translator Lite is published as a self-contained Windows x64 WPF app. The real app must keep its .NET runtime files, native dependencies, OneOCR files, and resources together. Do not manually move DLLs out of the app publish directory.
 
-Current safe layout goals:
+The beta.5 portable package uses an outer launcher so the user-facing root stays clean while the real self-contained app layout remains intact:
 
-- Keep `OWTranslatorLite.exe` and required .NET host/runtime DLLs in the publish root.
-- Keep OneOCR native files under `OneOcr\`.
-- Keep glossary and app resources under `Resources\`.
-- Keep optional design candidates under `Resources\UI\`.
-- Keep beta tester notes as `README-BETA.md` only when preparing a tester package.
-- Do not publish or zip from routine code changes; build locally first and package only after manual test approval.
+```text
+OWTranslatorLite/
+  OWTranslatorLite.exe      # small outer launcher
+  README-BETA.md
+  app/
+    OWTranslatorLite.exe    # real self-contained WPF app
+    *.dll
+    OneOcr/
+    Resources/
+    cs/
+    de/
+    ...
+```
 
-Future packaging options to evaluate before a release:
+## Packaging
 
-- framework-dependent publish to reduce bundled runtime files, if testers can install the required .NET Desktop Runtime;
-- installer-based layout that hides runtime files under an installation directory instead of changing runtime probing paths;
-- signed executable and explicit app icon once the UI asset candidate is selected.
+Use the packaging script from the repository root:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Tools/PackageRelease.ps1
+```
+
+The script:
+
+- reads `<Version>` from `OwTranslateLite.csproj`;
+- publishes the real app into `dist/OWTranslatorLite/app/`;
+- builds the outer launcher as `dist/OWTranslatorLite/OWTranslatorLite.exe`;
+- copies the matching `Docs/BetaTest-vX.Y.Z.md` as `README-BETA.md` when present;
+- creates `dist/OWTranslatorLite-vX.Y.Z-portable-win-x64.zip`.
+
+## Rules
+
+- Keep `app/OWTranslatorLite.exe` and all published .NET files together.
+- Keep OneOCR native files under `app/OneOcr/`.
+- Keep glossary, UI, and QuickStart resources under `app/Resources/`.
+- Do not publish or zip from routine code changes; package only for a tester/release build.
+- If the launcher changes, build and smoke-test the package from the outer `OWTranslatorLite.exe`, not only from `app/OWTranslatorLite.exe`.
