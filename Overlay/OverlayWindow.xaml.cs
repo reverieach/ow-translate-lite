@@ -17,6 +17,8 @@ public partial class OverlayWindow : Window
     private const double MinOverlayWidth = 260;
     private const double MinOverlayHeight = 100;
     private const double MinVisiblePixels = 80;
+    private const double AutoScrollBottomTolerance = 24;
+    private const double WheelScrollPixelsPerNotch = 72;
     private const int GwlExstyle = -20;
     private const int WmNchittest = 0x0084;
     private const int Httransparent = -1;
@@ -168,8 +170,46 @@ public partial class OverlayWindow : Window
 
     private void RenderRecords()
     {
+        bool shouldStayAtBottom = IsTranslationScrollNearBottom();
+        double previousOffset = TranslationScrollViewer.VerticalOffset;
         RecordList.ItemsSource = _records.ToList();
-        Dispatcher.BeginInvoke(() => TranslationScrollViewer.ScrollToEnd(), System.Windows.Threading.DispatcherPriority.Background);
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (shouldStayAtBottom)
+            {
+                TranslationScrollViewer.ScrollToEnd();
+                return;
+            }
+
+            double target = Math.Min(previousOffset, TranslationScrollViewer.ScrollableHeight);
+            TranslationScrollViewer.ScrollToVerticalOffset(target);
+        }, System.Windows.Threading.DispatcherPriority.Background);
+    }
+
+    private bool IsTranslationScrollNearBottom()
+    {
+        if (TranslationScrollViewer.ScrollableHeight <= 0)
+        {
+            return true;
+        }
+
+        return TranslationScrollViewer.ScrollableHeight - TranslationScrollViewer.VerticalOffset <= AutoScrollBottomTolerance;
+    }
+
+    private void TranslationScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer viewer)
+        {
+            return;
+        }
+
+        double deltaNotches = e.Delta / 120.0;
+        double target = Math.Clamp(
+            viewer.VerticalOffset - deltaNotches * WheelScrollPixelsPerNotch,
+            0,
+            viewer.ScrollableHeight);
+        viewer.ScrollToVerticalOffset(target);
+        e.Handled = true;
     }
 
     private void DragHandle_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)

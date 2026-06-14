@@ -135,8 +135,9 @@
 
             <ScrollViewer x:Name="TranslationScrollViewer"
                           Grid.Row="1"
-                          VerticalScrollBarVisibility="Auto"
-                          HorizontalScrollBarVisibility="Disabled">
+                          VerticalScrollBarVisibility="Hidden"
+                          HorizontalScrollBarVisibility="Disabled"
+                          PreviewMouseWheel="TranslationScrollViewer_PreviewMouseWheel">
                 <ItemsControl x:Name="RecordList">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
