@@ -1,17 +1,26 @@
 <Window x:Class="OwTranslateLite.QuickStartWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="快速上手"
-        Height="720"
-        Width="980"
-        MinHeight="620"
-        MinWidth="860"
+        Height="820"
+        Width="1180"
+        MinHeight="720"
+        MinWidth="1040"
         Background="{DynamicResource WindowBrush}"
         Foreground="{DynamicResource TextBrush}"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None"
         ResizeMode="CanResize"
         ShowInTaskbar="False">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0"
+                            ResizeBorderThickness="8"
+                            GlassFrameThickness="0"
+                            CornerRadius="0"
+                            UseAeroCaptionButtons="False"/>
+    </shell:WindowChrome.WindowChrome>
+
     <Window.Resources>
         <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="TextWrapping" Value="Wrap"/>
@@ -29,6 +38,17 @@
             <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Padding" Value="6"/>
             <Setter Property="ClipToBounds" Value="True"/>
+        </Style>
+
+        <Style x:Key="GuideImageStyle" TargetType="{x:Type Image}">
+            <Setter Property="Stretch" Value="Uniform"/>
+            <Setter Property="SnapsToDevicePixels" Value="True"/>
+            <Setter Property="UseLayoutRounding" Value="True"/>
+            <Setter Property="RenderOptions.BitmapScalingMode" Value="HighQuality"/>
+            <Setter Property="RenderOptions.EdgeMode" Value="Aliased"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="ToolTip" Value="点击打开原图"/>
+            <EventSetter Event="MouseLeftButtonUp" Handler="GuideImage_MouseLeftButtonUp"/>
         </Style>
 
         <Style x:Key="GuideStepNumberStyle" TargetType="{x:Type Border}">
@@ -114,7 +134,7 @@
                         </Border>
                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
                             <TextBlock Text="OW Translator Lite 使用指南" FontSize="25" FontWeight="SemiBold"/>
-                            <TextBlock Text="按下面 6 步完成 API、翻译区域和回话输入设置。主窗口可以同时操作，不需要先读完整份说明。"
+                            <TextBlock Text="按下面 6 步完成 API、翻译区域和回话输入设置。"
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,7,0,0"/>
                         </StackPanel>
@@ -136,7 +156,7 @@
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,6,0,12"/>
                             <Border Style="{StaticResource GuideImageFrameStyle}">
-                                <Image Source="Resources/QuickStart/ow-video-settings.png" Stretch="Uniform" MaxHeight="300"/>
+                                <Image Source="Resources/QuickStart/ow-video-settings.png" Style="{StaticResource GuideImageStyle}" MaxHeight="520"/>
                             </Border>
                         </StackPanel>
                     </Grid>
@@ -156,19 +176,14 @@
                             <TextBlock Text="打开 DeepSeek 开放平台的 API Keys 页面，点击创建 API key。创建后只会显示一次，请立即复制。"
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,6,0,12"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="2*"/>
-                                    <ColumnDefinition Width="12"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Border Style="{StaticResource GuideImageFrameStyle}">
-                                    <Image Source="Resources/QuickStart/deepseek-api-keys.png" Stretch="Uniform" MaxHeight="250"/>
+                            <StackPanel>
+                                <Border Style="{StaticResource GuideImageFrameStyle}" Margin="0,0,0,10">
+                                    <Image Source="Resources/QuickStart/deepseek-api-keys.png" Style="{StaticResource GuideImageStyle}" MaxHeight="520"/>
                                 </Border>
-                                <Border Grid.Column="2" Style="{StaticResource GuideImageFrameStyle}">
-                                    <Image Source="Resources/QuickStart/deepseek-create-key.png" Stretch="Uniform" MaxHeight="250"/>
+                                <Border Style="{StaticResource GuideImageFrameStyle}" HorizontalAlignment="Left">
+                                    <Image Source="Resources/QuickStart/deepseek-create-key.png" Style="{StaticResource GuideImageStyle}" MaxHeight="260"/>
                                 </Border>
-                            </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -188,7 +203,7 @@
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,6,0,12"/>
                             <Border Style="{StaticResource GuideImageFrameStyle}">
-                                <Image Source="Resources/QuickStart/app-api-config.png" Stretch="Uniform" MaxHeight="360"/>
+                                <Image Source="Resources/QuickStart/app-api-config.png" Style="{StaticResource GuideImageStyle}" MaxHeight="520"/>
                             </Border>
                         </StackPanel>
                     </Grid>
@@ -212,7 +227,7 @@
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,0,0,12"/>
                             <Border Style="{StaticResource GuideImageFrameStyle}">
-                                <Image Source="Resources/QuickStart/app-overlay-settings.png" Stretch="Uniform" MaxHeight="360"/>
+                                <Image Source="Resources/QuickStart/app-overlay-settings.png" Style="{StaticResource GuideImageStyle}" MaxHeight="520"/>
                             </Border>
                         </StackPanel>
                     </Grid>
@@ -232,19 +247,14 @@
                             <TextBlock Text="正常游玩时翻译框会保持低存在感，不遮挡主要视野。打开聊天框时，历史消息也会按聊天顺序显示，方便回看。"
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,6,0,12"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition Width="12"/>
-                                    <ColumnDefinition/>
-                                </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <Border Style="{StaticResource GuideImageFrameStyle}" Margin="0,0,0,10">
+                                    <Image Source="Resources/QuickStart/game-low-profile.png" Style="{StaticResource GuideImageStyle}" MaxHeight="560"/>
+                                </Border>
                                 <Border Style="{StaticResource GuideImageFrameStyle}">
-                                    <Image Source="Resources/QuickStart/game-low-profile.png" Stretch="Uniform" MaxHeight="260"/>
+                                    <Image Source="Resources/QuickStart/game-history-records.png" Style="{StaticResource GuideImageStyle}" MaxHeight="560"/>
                                 </Border>
-                                <Border Grid.Column="2" Style="{StaticResource GuideImageFrameStyle}">
-                                    <Image Source="Resources/QuickStart/game-history-records.png" Stretch="Uniform" MaxHeight="260"/>
-                                </Border>
-                            </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -266,19 +276,14 @@
                             <TextBlock Text="程序不会自动替你发送游戏聊天。翻译完成后，请在 OW 聊天框里粘贴，再由你自己按 Enter 发送。"
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,0,0,12"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition/>
-                                    <ColumnDefinition Width="12"/>
-                                    <ColumnDefinition/>
-                                </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <Border Style="{StaticResource GuideImageFrameStyle}" Margin="0,0,0,10">
+                                    <Image Source="Resources/QuickStart/reply-overlay-input.png" Style="{StaticResource GuideImageStyle}" MaxHeight="560"/>
+                                </Border>
                                 <Border Style="{StaticResource GuideImageFrameStyle}">
-                                    <Image Source="Resources/QuickStart/reply-overlay-input.png" Stretch="Uniform" MaxHeight="260"/>
+                                    <Image Source="Resources/QuickStart/reply-game-chat.png" Style="{StaticResource GuideImageStyle}" MaxHeight="560"/>
                                 </Border>
-                                <Border Grid.Column="2" Style="{StaticResource GuideImageFrameStyle}">
-                                    <Image Source="Resources/QuickStart/reply-game-chat.png" Stretch="Uniform" MaxHeight="260"/>
-                                </Border>
-                            </Grid>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </Border>

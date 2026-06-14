@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -50,6 +52,30 @@ public partial class QuickStartWindow : Window
             0,
             viewer.ScrollableHeight);
         viewer.ScrollToVerticalOffset(target);
+        e.Handled = true;
+    }
+
+    private void GuideImage_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not System.Windows.Controls.Image image || image.Source is null)
+        {
+            return;
+        }
+
+        string source = image.Source.ToString() ?? "";
+        string path = Uri.TryCreate(source, UriKind.Absolute, out Uri? absoluteUri)
+            ? absoluteUri.LocalPath
+            : Path.Combine(AppContext.BaseDirectory, source.Replace('/', Path.DirectorySeparatorChar));
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        Process.Start(new ProcessStartInfo
+        {
+            FileName = path,
+            UseShellExecute = true
+        });
         e.Handled = true;
     }
 }
