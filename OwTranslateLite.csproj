@@ -11,6 +11,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>OWTranslatorLite</AssemblyName>
     <RootNamespace>OwTranslateLite</RootNamespace>
+    <ApplicationIcon>Resources\UI\ow-translator-lite-icon.ico</ApplicationIcon>
     <OutputPath>app</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>

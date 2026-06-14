@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         Title="OW Translator Lite"
+        Icon="Resources/UI/ow-translator-lite-icon.ico"
         Height="760"
         Width="1180"
         MinHeight="680"
