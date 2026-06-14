@@ -1,90 +1,306 @@
 <Window x:Class="OwTranslateLite.QuickStartWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Quick Start"
-        Height="680"
-        Width="760"
-        MinHeight="560"
-        MinWidth="680"
+        Title="快速上手"
+        Height="720"
+        Width="980"
+        MinHeight="620"
+        MinWidth="860"
         Background="{DynamicResource WindowBrush}"
         Foreground="{DynamicResource TextBrush}"
         WindowStartupLocation="CenterOwner"
+        WindowStyle="None"
+        ResizeMode="CanResize"
         ShowInTaskbar="False">
     <Window.Resources>
         <Style TargetType="{x:Type TextBlock}" BasedOn="{StaticResource {x:Type TextBlock}}">
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
+
+        <Style x:Key="GuideStepCardStyle" TargetType="{x:Type Border}" BasedOn="{StaticResource CardBorderStyle}">
+            <Setter Property="Padding" Value="18"/>
+            <Setter Property="Margin" Value="0,0,0,14"/>
+        </Style>
+
+        <Style x:Key="GuideImageFrameStyle" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="#0F1218"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushApple}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="6"/>
+            <Setter Property="ClipToBounds" Value="True"/>
+        </Style>
+
+        <Style x:Key="GuideStepNumberStyle" TargetType="{x:Type Border}">
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Top"/>
+        </Style>
+
+        <Style x:Key="GuideBodyTextStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+            <Setter Property="LineHeight" Value="20"/>
+        </Style>
     </Window.Resources>
 
-    <Grid Margin="22">
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="42"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
-                Style="{StaticResource CardBorderStyle}"
-                Padding="18,16"
-                Margin="0,0,0,14">
-            <Grid>
+        <Border x:Name="TitleBar"
+                Grid.Row="0"
+                Background="{StaticResource WindowBrush}"
+                BorderBrush="{StaticResource BorderSoftBrush}"
+                BorderThickness="0,0,0,1"
+                MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid Margin="18,0,10,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="14"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Width="38" Height="38" CornerRadius="10" Background="#182534" BorderBrush="#335C9DFF" BorderThickness="1">
-                    <Path Data="{StaticResource IconMonitor}"
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Path Data="{StaticResource IconFile}"
                           Style="{StaticResource IconPathStyle}"
                           Stroke="{StaticResource PrimaryBrush}"
-                          Width="19"
-                          Height="19"/>
-                </Border>
-                <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                    <TextBlock Text="OW Translator Lite Quick Start" FontSize="24" FontWeight="SemiBold"/>
-                    <TextBlock Text="建议按下面顺序完成配置。API Key 会用当前 Windows 用户的 DPAPI 保护保存；仍不要把自己的 settings.json 一起分发。"
-                               Foreground="{StaticResource TextSecondaryBrush}"
-                               Margin="0,7,0,0"/>
+                          Width="17"
+                          Height="17"
+                          Margin="0,0,9,0"/>
+                    <TextBlock Text="快速上手"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               VerticalAlignment="Center"/>
+                    <TextBlock Text="v0.2.0 beta"
+                               Foreground="{StaticResource TextMutedBrush}"
+                               FontSize="12"
+                               Margin="10,1,0,0"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
+                <Button Grid.Column="1"
+                        Content="×"
+                        Style="{StaticResource WindowCaptionCloseButtonStyle}"
+                        Click="Close_Click"/>
             </Grid>
         </Border>
 
-        <Border Grid.Row="1"
-                Style="{StaticResource CardBorderStyle}"
-                Padding="0">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="18,16">
-                <StackPanel>
-                    <TextBlock Text="1. 设置 Overwatch" FontSize="18" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                    <TextBlock Text="在 OW 的视频设置里把显示模式改成无边框窗口或窗口化无边框。不要使用独占全屏，否则截图和 overlay 可能不稳定。"/>
-                    <TextBlock Text="确认聊天框正常显示，测试时可以先进入训练场或自定义房间。" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+        <ScrollViewer x:Name="GuideScrollViewer"
+                      Grid.Row="1"
+                      VerticalScrollBarVisibility="Hidden"
+                      HorizontalScrollBarVisibility="Disabled"
+                      Padding="22,18"
+                      PreviewMouseWheel="GuideScrollViewer_PreviewMouseWheel">
+            <StackPanel>
+                <Border Style="{StaticResource CardBorderStyle}"
+                        Padding="20"
+                        Margin="0,0,0,16"
+                        BorderBrush="#5530D158">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="16"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Width="42" Height="42" CornerRadius="11" Background="#182534" BorderBrush="#335C9DFF" BorderThickness="1">
+                            <Path Data="{StaticResource IconMessage}"
+                                  Style="{StaticResource IconPathStyle}"
+                                  Stroke="{StaticResource PrimaryBrush}"
+                                  Width="21"
+                                  Height="21"/>
+                        </Border>
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                            <TextBlock Text="OW Translator Lite 使用指南" FontSize="25" FontWeight="SemiBold"/>
+                            <TextBlock Text="按下面 6 步完成 API、翻译区域和回话输入设置。主窗口可以同时操作，不需要先读完整份说明。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,7,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                    <TextBlock Text="2. 配置 DeepSeek API" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
-                    <TextBlock Text="打开 DeepSeek 开放平台，登录后进入 API Keys 页面创建密钥："/>
-                    <TextBlock Text="https://platform.deepseek.com/api_keys" Foreground="{StaticResource CyanBrush}" Margin="0,4,0,0"/>
-                    <TextBlock Text="在本程序里选择 DeepSeek，API URL 填 https://api.deepseek.com，把 API Key 粘贴到 API Key 输入框。" Margin="0,4,0,0"/>
-                    <TextBlock Text="点击“获取模型”，从模型列表里选择 deepseek-v4-flash；如果无法获取模型，可先手动保留默认模型名。" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                <Border Style="{StaticResource GuideStepCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource GuideStepNumberStyle}">
+                            <TextBlock Text="1" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="设置游戏窗口" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="在 OW 视频设置里建议使用无边框窗口或窗口化无边框。独占全屏可能让截图或翻译框显示不稳定。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,6,0,12"/>
+                            <Border Style="{StaticResource GuideImageFrameStyle}">
+                                <Image Source="Resources/QuickStart/ow-video-settings.png" Stretch="Uniform" MaxHeight="300"/>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                    <TextBlock Text="3. 确认 OCR 识别模式" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
-                    <TextBlock Text="当前固定使用本地 OneOCR 自动识别，程序不会强制指定英语、日语或韩语。输出目标始终是简体中文。"/>
+                <Border Style="{StaticResource GuideStepCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource GuideStepNumberStyle}">
+                            <TextBlock Text="2" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="创建 DeepSeek API Key" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="打开 DeepSeek 开放平台的 API Keys 页面，点击创建 API key。创建后只会显示一次，请立即复制。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,6,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource GuideImageFrameStyle}">
+                                    <Image Source="Resources/QuickStart/deepseek-api-keys.png" Stretch="Uniform" MaxHeight="250"/>
+                                </Border>
+                                <Border Grid.Column="2" Style="{StaticResource GuideImageFrameStyle}">
+                                    <Image Source="Resources/QuickStart/deepseek-create-key.png" Stretch="Uniform" MaxHeight="250"/>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                    <TextBlock Text="4. 框选聊天区域" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
-                    <TextBlock Text="点击“选择聊天区域”，框选 OW 左边的消息文本框部分即可。需要完整包含玩家消息文本，尤其是 [玩家名]：正文 这一整行。"/>
-                    <TextBlock Text="区域不要框太大，尽量避开头像、技能 HUD、菜单提示和背景噪声；但也不要截断聊天行的顶部、底部或右侧文字。" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                <Border Style="{StaticResource GuideStepCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource GuideStepNumberStyle}">
+                            <TextBlock Text="3" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="填入程序并获取模型" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="服务选择 DeepSeek，API URL 使用 https://api.deepseek.com，把刚复制的 API Key 粘贴进去。点击“获取模型”后选择 deepseek-v4-flash。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,6,0,12"/>
+                            <Border Style="{StaticResource GuideImageFrameStyle}">
+                                <Image Source="Resources/QuickStart/app-api-config.png" Stretch="Uniform" MaxHeight="360"/>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                    <TextBlock Text="5. 设置翻译框" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
-                    <TextBlock Text="点击“显示翻译框”可以预览位置。需要移动或缩放时点击“调整翻译框”，拖动顶部横条移动，拖动右下角调整大小；调整完成后点击“完成调整”，程序会恢复鼠标穿透。"/>
-                    <TextBlock Text="透明度只影响黑色背景，不会让字体变糊。翻译框会保留最近 50 条翻译，OCR 没文字后会延迟隐藏但不清空历史。" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                <Border Style="{StaticResource GuideStepCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource GuideStepNumberStyle}">
+                            <TextBlock Text="4" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="设置翻译框" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="程序已经带有一组 OW 聊天区域和翻译框默认位置。先直接试用；如果识别漏字、位置不准或翻译明显不对，再点击“选择翻译区域”重新框选 OW 左侧聊天框。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,6,0,6"/>
+                            <TextBlock Text="“调整翻译框”用于移动或缩放译文显示位置；“常态显示翻译框”会让翻译框一直显示；关闭“鼠标穿透”后可以拖动、缩放和滚动翻译框。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,0,0,12"/>
+                            <Border Style="{StaticResource GuideImageFrameStyle}">
+                                <Image Source="Resources/QuickStart/app-overlay-settings.png" Stretch="Uniform" MaxHeight="360"/>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
 
-                    <TextBlock Text="6. 开始测试" FontSize="18" FontWeight="SemiBold" Margin="0,18,0,6"/>
-                    <TextBlock Text="所有配置都会自动保存并立即应用，确认 API、模型、聊天区域和翻译框位置后，点击“开始”。暂停会停止识别并隐藏翻译框，但不会清空历史；只有“清空”按钮会清空主日志和翻译框历史。"/>
-                    <TextBlock Text="如果出现重复，优先检查是否框选过大；如果漏字，稍微扩大聊天框选区域。当前 OneOCR 自动识别，不支持强制指定源语言。" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,0"/>
-                </StackPanel>
-            </ScrollViewer>
+                <Border Style="{StaticResource GuideStepCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource GuideStepNumberStyle}">
+                            <TextBlock Text="5" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="实机效果" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="正常游玩时翻译框会保持低存在感，不遮挡主要视野。打开聊天框时，历史消息也会按聊天顺序显示，方便回看。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,6,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource GuideImageFrameStyle}">
+                                    <Image Source="Resources/QuickStart/game-low-profile.png" Stretch="Uniform" MaxHeight="260"/>
+                                </Border>
+                                <Border Grid.Column="2" Style="{StaticResource GuideImageFrameStyle}">
+                                    <Image Source="Resources/QuickStart/game-history-records.png" Stretch="Uniform" MaxHeight="260"/>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Border Style="{StaticResource GuideStepCardStyle}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="44"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Style="{StaticResource GuideStepNumberStyle}">
+                            <TextBlock Text="6" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="中文回话翻译复制" FontSize="18" FontWeight="SemiBold"/>
+                            <TextBlock Text="开启“显示回话输入条”后，翻译框底部会出现输入栏。输入中文，选择自动、英语、日语或韩语，按 Enter 后程序会把译文复制到剪贴板。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,6,0,6"/>
+                            <TextBlock Text="程序不会自动替你发送游戏聊天。翻译完成后，请在 OW 聊天框里粘贴，再由你自己按 Enter 发送。"
+                                       Style="{StaticResource GuideBodyTextStyle}"
+                                       Margin="0,0,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource GuideImageFrameStyle}">
+                                    <Image Source="Resources/QuickStart/reply-overlay-input.png" Stretch="Uniform" MaxHeight="260"/>
+                                </Border>
+                                <Border Grid.Column="2" Style="{StaticResource GuideImageFrameStyle}">
+                                    <Image Source="Resources/QuickStart/reply-game-chat.png" Stretch="Uniform" MaxHeight="260"/>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <Border Grid.Row="2"
+                Background="{StaticResource WindowBrush}"
+                BorderBrush="{StaticResource BorderSoftBrush}"
+                BorderThickness="0,1,0,0"
+                Padding="22,14">
+            <DockPanel LastChildFill="False">
+                <CheckBox x:Name="DoNotShowAgainCheck"
+                          Content="下次不再提示"
+                          VerticalAlignment="Center"
+                          DockPanel.Dock="Left"/>
+                <Button Content="开始配置"
+                        Width="118"
+                        Style="{StaticResource PrimaryButtonStyle}"
+                        DockPanel.Dock="Right"
+                        Click="Close_Click"/>
+            </DockPanel>
         </Border>
-
-        <DockPanel Grid.Row="2" Margin="0,14,0,0">
-            <CheckBox x:Name="DoNotShowAgainCheck" Content="下次不再提示" VerticalAlignment="Center"/>
-            <Button DockPanel.Dock="Right" Content="开始配置" Width="112" Style="{StaticResource PrimaryButtonStyle}" Click="Close_Click"/>
-        </DockPanel>
     </Grid>
 </Window>

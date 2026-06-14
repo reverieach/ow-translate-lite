@@ -101,7 +101,7 @@
                         <Border x:Name="FirstRunPanel" Style="{StaticResource CardBorderStyle}" BorderBrush="#660A84FF" Margin="0,0,0,12">
                             <StackPanel>
                                 <TextBlock Text="首次配置" Style="{StaticResource SectionHeaderTextStyle}"/>
-                                <TextBlock Text="选择 API、翻译区域和 overlay 后即可开始。" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                <TextBlock Text="选择 API、翻译区域和翻译框后即可开始。" Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                                 <Button Content="完成首次配置" Style="{StaticResource PrimaryButtonStyle}" Margin="0,12,0,0" HorizontalAlignment="Left" Click="FinishFirstRun_Click"/>
                             </StackPanel>
                         </Border>
@@ -164,7 +164,7 @@
                                             <ColumnDefinition/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="常态显示 overlay" VerticalAlignment="Center"/>
+                                        <TextBlock Text="常态显示翻译框" VerticalAlignment="Center"/>
                                         <CheckBox x:Name="KeepOverlayVisibleCheck"
                                                   Grid.Column="1"
                                                   Style="{StaticResource SwitchCheckBoxStyle}"
@@ -229,6 +229,29 @@
                                     <ComboBoxItem Content="Alt+Shift+Enter"/>
                                 </ComboBox>
                             </StackPanel>
+                        </Border>
+
+                        <Border Style="{StaticResource CardBorderStyle}" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="使用说明" Style="{StaticResource SectionHeaderTextStyle}"/>
+                                    <TextBlock Text="查看 API 配置、翻译框设置和中文回话输入的图文指南。"
+                                               Foreground="{StaticResource TextSecondaryBrush}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,8,14,0"/>
+                                </StackPanel>
+                                <Button Grid.Column="1"
+                                        Content="打开"
+                                        Width="72"
+                                        Margin="0"
+                                        VerticalAlignment="Center"
+                                        Style="{StaticResource GhostButtonStyle}"
+                                        Click="OpenQuickStart_Click"/>
+                            </Grid>
                         </Border>
 
                         <Expander Margin="0,0,0,12" Foreground="{StaticResource TextBrush}">

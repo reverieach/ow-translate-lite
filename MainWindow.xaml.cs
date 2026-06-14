@@ -56,6 +56,7 @@ public partial class MainWindow : Window
     private int _burstOcrFramesRemaining;
     private int _consecutiveNoChatFrames;
     private int _runGeneration;
+    private QuickStartWindow? _quickStartWindow;
     private readonly List<TranslationRecord> _records = [];
 
     public MainWindow()
@@ -98,6 +99,7 @@ public partial class MainWindow : Window
         StopLoop(hideOverlay: false, clearOverlay: false);
         _ocrEngineManager.Dispose();
         SaveSettingsFromUi();
+        _quickStartWindow?.Close();
         _overlayController.Close();
     }
 
@@ -376,16 +378,42 @@ public partial class MainWindow : Window
             return;
         }
 
+        ShowQuickStartWindow();
+    }
+
+    private void OpenQuickStart_Click(object sender, RoutedEventArgs e)
+    {
+        ShowQuickStartWindow();
+    }
+
+    private void ShowQuickStartWindow()
+    {
+        if (_quickStartWindow is { IsVisible: true })
+        {
+            _quickStartWindow.Activate();
+            return;
+        }
+
         QuickStartWindow quickStart = new()
         {
             Owner = this
         };
-        quickStart.ShowDialog();
-        if (quickStart.DoNotShowAgain)
+        _quickStartWindow = quickStart;
+        quickStart.Closed += (_, _) =>
         {
-            _config.Settings.ShowQuickStart = false;
-            _config.Save();
-        }
+            if (quickStart.DoNotShowAgain)
+            {
+                _config.Settings.ShowQuickStart = false;
+                _config.Save();
+            }
+
+            if (ReferenceEquals(_quickStartWindow, quickStart))
+            {
+                _quickStartWindow = null;
+            }
+        };
+        quickStart.Show();
+        quickStart.Activate();
     }
 
     private void SelectArea_Click(object sender, RoutedEventArgs e)
@@ -414,8 +442,8 @@ public partial class MainWindow : Window
         SaveSettingsFromUi();
         ApplyOverlayVisibilityPreference(activate: true);
         AddLog(_config.Settings.KeepOverlayVisible
-            ? "已切换为常态显示 overlay。"
-            : "已切换为默认隐藏 overlay。");
+            ? "已切换为常态显示翻译框。"
+            : "已切换为默认隐藏翻译框。");
     }
 
     private void AdjustFrame_Click(object sender, RoutedEventArgs e)
