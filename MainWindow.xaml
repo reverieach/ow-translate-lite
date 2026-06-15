@@ -313,27 +313,6 @@
                                         <Button Content="检查更新" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="CheckForUpdates_Click"/>
                                         <Button Content="清除本机数据" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,8" Click="ClearUserData_Click"/>
                                     </WrapPanel>
-                                    <Grid Margin="0,0,0,10">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition/>
-                                            <ColumnDefinition Width="10"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <ComboBox x:Name="FrameCaseCombo" SelectedIndex="0">
-                                            <ComboBoxItem Content="Case 1 韩语短消息/冷启动" Tag="case01-korean-short-cold-start"/>
-                                            <ComboBoxItem Content="Case 2 多人陆续发言" Tag="case02-multi-speaker-burst"/>
-                                            <ComboBoxItem Content="Case 3 打开聊天历史" Tag="case03-open-chat-history"/>
-                                            <ComboBoxItem Content="Case 4 OCR 字符抖动" Tag="case04-ocr-character-jitter"/>
-                                            <ComboBoxItem Content="Case 5 韩语空格抖动" Tag="case05-korean-spacing-jitter"/>
-                                            <ComboBoxItem Content="Case 6 系统提示交错" Tag="case06-system-player-mixed"/>
-                                            <ComboBoxItem Content="Case 7 淡化后同文本再发" Tag="case07-fade-then-repeat"/>
-                                        </ComboBox>
-                                        <Button x:Name="FrameRecordingButton"
-                                                Grid.Column="2"
-                                                Content="录制 Case"
-                                                Margin="0"
-                                                Click="FrameRecording_Click"/>
-                                    </Grid>
                                     <Grid Margin="0,0,0,8" MinHeight="30">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition/>
