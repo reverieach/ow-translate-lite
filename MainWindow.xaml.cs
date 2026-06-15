@@ -380,11 +380,11 @@ public partial class MainWindow : Window
             return;
         }
 
-        string message = "当前程序路径包含中文字符，可能导致 OCR 或 native 组件加载失败。\n\n" +
-                         "请把整个 OWTranslatorLite 文件夹移动到英文路径后再运行，例如：\n" +
+        string message = "当前程序路径包含中文字符，少数机器上可能导致 OCR 或 native 组件加载失败。\n\n" +
+                         "程序会继续启动；如果后续出现无法识别、OCR 初始化失败或启动异常，请把整个 OWTranslatorLite 文件夹移动到英文路径后再试，例如：\n" +
                          "C:\\OWTranslatorLite\\\n" +
                          "D:\\Tools\\OWTranslatorLite\\";
-        AddLog("当前程序路径包含中文字符，建议移动到英文路径后使用。");
+        AddLog("当前程序路径包含中文字符；如果 OCR 或启动异常，建议移动到英文路径后再试。");
         System.Windows.MessageBox.Show(message, "OW Translator Lite", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 

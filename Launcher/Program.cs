@@ -18,11 +18,10 @@ namespace OWTranslatorLiteLauncher
             if (ContainsCjk(rootDirectory))
             {
                 MessageBox.Show(
-                    "当前解压路径包含中文字符，可能导致 OCR 或 native 组件加载失败。\n\n请把整个 OWTranslatorLite 文件夹移动到英文路径后再运行，例如：\nC:\\OWTranslatorLite\\\nD:\\Tools\\OWTranslatorLite\\",
+                    "当前解压路径包含中文字符，少数机器上可能导致 OCR 或 native 组件加载失败。\n\n程序会继续启动；如果后续出现无法识别、OCR 初始化失败或启动异常，请把整个 OWTranslatorLite 文件夹移动到英文路径后再试，例如：\nC:\\OWTranslatorLite\\\nD:\\Tools\\OWTranslatorLite\\",
                     "OW Translator Lite",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Warning);
-                return 3;
             }
 
             if (!File.Exists(appPath))
