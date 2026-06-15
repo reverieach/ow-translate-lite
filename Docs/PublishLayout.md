@@ -7,6 +7,7 @@ The beta.5 portable package uses an outer launcher so the user-facing root stays
 ```text
 OWTranslatorLite/
   OWTranslatorLite.exe      # small outer launcher
+  OWTranslatorLiteUpdater.exe # small outer updater
   README-BETA.md
   app/
     OWTranslatorLite.exe    # real self-contained WPF app
@@ -31,8 +32,10 @@ The script:
 - reads `<Version>` from `OwTranslateLite.csproj`;
 - publishes the real app into `dist/OWTranslatorLite/app/`;
 - builds the outer launcher as `dist/OWTranslatorLite/OWTranslatorLite.exe`;
+- builds the outer updater as `dist/OWTranslatorLite/OWTranslatorLiteUpdater.exe`;
 - copies the matching `Docs/BetaTest-vX.Y.Z.md` as `README-BETA.md` when present;
-- creates `dist/OWTranslatorLite-vX.Y.Z-portable-win-x64.zip`.
+- creates `dist/OWTranslatorLite-vX.Y.Z-portable-win-x64.zip`;
+- creates `dist/OWTranslatorLite-vX.Y.Z-portable-win-x64.zip.sha256.txt`.
 
 ## Rules
 
@@ -41,3 +44,4 @@ The script:
 - Keep glossary, UI, and QuickStart resources under `app/Resources/`.
 - Do not publish or zip from routine code changes; package only for a tester/release build.
 - If the launcher changes, build and smoke-test the package from the outer `OWTranslatorLite.exe`, not only from `app/OWTranslatorLite.exe`.
+- If the updater changes, test both paths: automatic update from a release asset URL and manual update with a zip placed in the outer package folder.

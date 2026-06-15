@@ -26,7 +26,7 @@ selected region
 - `Core/SecretStore.cs`: Windows DPAPI protection for local API keys.
 - `Core/SettingsMigrator.cs`: legacy setting normalization and API key migration.
 - `Core/OcrTextPostProcessor.cs`: player-boundary repair and geometry-first wrapped-line merge before parsing, including Korean continuation lines with incidental CJK OCR noise.
-- `Core/DiagnosticsService.cs`: beta diagnostics, runtime log, dedupe log, and redacted report export.
+- `Core/DiagnosticsService.cs`: beta diagnostics, runtime/crash/debug logs, and redacted feedback package export.
 - `Core/FrameSequenceRecorder.cs`: beta frame-sequence recording for ReplayLab fixtures.
 - `Core/FrameDiffGate.cs`: low-cost pixel signature gate used by the main loop to patrol the selected chat region without running OCR on stable frames.
 - `Core/ChatTimeline.cs`: authoritative ordered chat log. Message identity is the aligned timeline `Seq`, not content equality.
