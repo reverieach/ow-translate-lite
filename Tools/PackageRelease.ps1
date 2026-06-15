@@ -22,6 +22,7 @@ if (-not (Test-Path -LiteralPath $dotnet)) {
 $distDirectory = Join-Path $repoRoot "dist"
 $packageRoot = Join-Path $distDirectory "OWTranslatorLite"
 $zipPath = Join-Path $distDirectory "OWTranslatorLite-v$version-portable-win-x64.zip"
+$sha256Path = "$zipPath.sha256.txt"
 
 if (Test-Path -LiteralPath $packageRoot) {
     Remove-Item -LiteralPath $packageRoot -Recurse -Force
@@ -60,6 +61,25 @@ if ($LASTEXITCODE -ne 0) {
     throw "Launcher build failed."
 }
 
+$updaterPath = Join-Path $packageRoot "OWTranslatorLiteUpdater.exe"
+$updaterSource = Join-Path $repoRoot "Updater\Program.cs"
+$updaterArgs = @(
+    "/nologo",
+    "/target:winexe",
+    "/platform:x64",
+    "/optimize+",
+    "/win32icon:$iconPath",
+    "/reference:System.Windows.Forms.dll",
+    "/reference:System.IO.Compression.dll",
+    "/reference:System.IO.Compression.FileSystem.dll",
+    "/out:$updaterPath",
+    $updaterSource
+)
+& $csc $updaterArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "Updater build failed."
+}
+
 $readmeSource = Join-Path $repoRoot "Docs\BetaTest-v$version.md"
 if (-not (Test-Path -LiteralPath $readmeSource)) {
     $readmeSource = Join-Path $repoRoot "README.md"
@@ -69,7 +89,15 @@ Copy-Item -LiteralPath $readmeSource -Destination (Join-Path $packageRoot "READM
 if (Test-Path -LiteralPath $zipPath) {
     Remove-Item -LiteralPath $zipPath -Force
 }
+if (Test-Path -LiteralPath $sha256Path) {
+    Remove-Item -LiteralPath $sha256Path -Force
+}
 Compress-Archive -Path $packageRoot -DestinationPath $zipPath -Force
+
+$hash = Get-FileHash -LiteralPath $zipPath -Algorithm SHA256
+$shaLine = "$($hash.Hash.ToLowerInvariant())  $(Split-Path -Leaf $zipPath)"
+[System.IO.File]::WriteAllText($sha256Path, $shaLine + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
 
 Write-Host "Package folder: $packageRoot"
 Write-Host "Package zip:    $zipPath"
+Write-Host "SHA256 file:    $sha256Path"

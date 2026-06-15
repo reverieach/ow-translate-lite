@@ -28,8 +28,10 @@
 
   <ItemGroup>
     <Compile Remove="Launcher\**\*.cs"/>
+    <Compile Remove="Updater\**\*.cs"/>
     <Compile Remove="Tools\**\*.cs"/>
     <None Remove="Launcher\**\*"/>
+    <None Remove="Updater\**\*"/>
     <None Remove="Tools\**\*"/>
   </ItemGroup>
 

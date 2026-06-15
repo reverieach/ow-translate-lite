@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private readonly RecentChatLanguageTracker _recentChatLanguages = new();
     private readonly HotKeyService _replyHotKey = new(ReplyHotkeyId);
     private readonly DiagnosticsService _diagnostics = new();
+    private readonly UpdateService _updateService = new();
     private readonly FrameSequenceRecorder _frameSequenceRecorder = new();
     private readonly OverlayController _overlayController = new();
     private OwGlossaryService _glossary = null!;
@@ -39,6 +40,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _loopCts;
     private CancellationTokenSource? _replyTranslationCts;
     private CancellationTokenSource? _fetchModelsCts;
+    private CancellationTokenSource? _updateCheckCts;
     private readonly OcrEngineManager _ocrEngineManager = new();
     private readonly FrameDiffGate _frameDiffGate = new();
     private readonly Queue<ParsedChatLine> _translationQueue = [];
@@ -87,6 +89,7 @@ public partial class MainWindow : Window
         ShowInstallPathWarningIfNeeded();
         ApplyReplyHotkeyRegistration();
         ShowQuickStartIfNeeded();
+        _ = CheckForUpdatesAsync(manual: false);
     }
 
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
@@ -96,6 +99,7 @@ public partial class MainWindow : Window
         _replyHotKey.Dispose();
         _replyTranslationCts?.Cancel();
         _fetchModelsCts?.Cancel();
+        _updateCheckCts?.Cancel();
         _frameSequenceRecorder.Stop();
         StopLoop(hideOverlay: false, clearOverlay: false);
         _ocrEngineManager.Dispose();
@@ -621,6 +625,156 @@ public partial class MainWindow : Window
             LogList.Items.Cast<object>().Select(static item => item.ToString() ?? ""),
             CreateRuntimeDiagnosticsSnapshot());
         AddLog($"已导出反馈包：{diagnosticsPath}");
+    }
+
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        await CheckForUpdatesAsync(manual: true);
+    }
+
+    private async Task CheckForUpdatesAsync(bool manual)
+    {
+        _updateCheckCts?.Cancel();
+        _updateCheckCts?.Dispose();
+        _updateCheckCts = new CancellationTokenSource();
+        CancellationTokenSource checkCts = _updateCheckCts;
+        try
+        {
+            if (manual)
+            {
+                AddLog("正在检查更新...");
+            }
+
+            UpdateCheckResult update = await _updateService.CheckLatestAsync(checkCts.Token);
+            if (!update.IsNewer)
+            {
+                if (manual)
+                {
+                    AddLog($"当前已是最新版本：{update.CurrentVersion}");
+                    System.Windows.MessageBox.Show(
+                        $"当前已是最新版本：{update.CurrentVersion}",
+                        "检查更新",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Information);
+                }
+
+                return;
+            }
+
+            if (!manual &&
+                string.Equals(_config.Settings.IgnoredUpdateVersion, update.LatestVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                AddLog($"已忽略更新版本：{update.LatestVersion}");
+                return;
+            }
+
+            ShowUpdatePrompt(update);
+        }
+        catch (OperationCanceledException) when (checkCts.IsCancellationRequested)
+        {
+            // A newer update check superseded this one.
+        }
+        catch (Exception ex)
+        {
+            if (manual)
+            {
+                System.Windows.MessageBox.Show(
+                    $"检查更新失败：{ex.Message}",
+                    "检查更新",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Warning);
+            }
+
+            AddLog($"检查更新失败：{ex.Message}");
+        }
+        finally
+        {
+            if (ReferenceEquals(_updateCheckCts, checkCts))
+            {
+                _updateCheckCts.Dispose();
+                _updateCheckCts = null;
+            }
+        }
+    }
+
+    private void ShowUpdatePrompt(UpdateCheckResult update)
+    {
+        UpdateWindow window = new(update)
+        {
+            Owner = this
+        };
+        _ = window.ShowDialog();
+        if (window.IgnoreVersion)
+        {
+            _config.Settings.IgnoredUpdateVersion = update.LatestVersion;
+            _config.Save();
+            AddLog($"已设置不再提醒版本：{update.LatestVersion}");
+        }
+
+        switch (window.SelectedAction)
+        {
+            case UpdateWindowAction.OpenReleasePage:
+                UpdateWindow.OpenReleasePage(update.ReleasePageUrl);
+                break;
+            case UpdateWindowAction.UpdateNow:
+                StartUpdater(update);
+                break;
+        }
+    }
+
+    private void StartUpdater(UpdateCheckResult update)
+    {
+        if (update.PackageAsset is not UpdateAsset packageAsset)
+        {
+            System.Windows.MessageBox.Show(
+                "当前 Release 没有找到可自动更新的 win-x64 便携包，将打开发布页供你手动下载。",
+                "立即更新",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            UpdateWindow.OpenReleasePage(update.ReleasePageUrl);
+            return;
+        }
+
+        string rootDirectory = GetPackageRootDirectory();
+        string updaterPath = Path.Combine(rootDirectory, "OWTranslatorLiteUpdater.exe");
+        if (!File.Exists(updaterPath))
+        {
+            System.Windows.MessageBox.Show(
+                "当前目录没有找到 OWTranslatorLiteUpdater.exe。\n\n请打开发布页手动下载最新版本，或确认发布包完整解压。",
+                "立即更新",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            UpdateWindow.OpenReleasePage(update.ReleasePageUrl);
+            return;
+        }
+
+        string launcherPath = Path.Combine(rootDirectory, "OWTranslatorLite.exe");
+        ProcessStartInfo startInfo = new()
+        {
+            FileName = updaterPath,
+            WorkingDirectory = rootDirectory,
+            UseShellExecute = false
+        };
+        startInfo.ArgumentList.Add("--root");
+        startInfo.ArgumentList.Add(rootDirectory);
+        startInfo.ArgumentList.Add("--download-url");
+        startInfo.ArgumentList.Add(packageAsset.DownloadUrl);
+        if (update.Sha256Asset is UpdateAsset sha256Asset)
+        {
+            startInfo.ArgumentList.Add("--sha256-url");
+            startInfo.ArgumentList.Add(sha256Asset.DownloadUrl);
+        }
+
+        startInfo.ArgumentList.Add("--release-page");
+        startInfo.ArgumentList.Add(update.ReleasePageUrl);
+        startInfo.ArgumentList.Add("--launcher");
+        startInfo.ArgumentList.Add(launcherPath);
+        startInfo.ArgumentList.Add("--pid");
+        startInfo.ArgumentList.Add(Process.GetCurrentProcess().Id.ToString());
+
+        Process.Start(startInfo);
+        AddLog($"已启动更新器：{update.LatestVersion}");
+        System.Windows.Application.Current.Shutdown();
     }
 
     private void FrameRecording_Click(object sender, RoutedEventArgs e)
@@ -1556,6 +1710,19 @@ public partial class MainWindow : Window
         }
 
         return false;
+    }
+
+    private static string GetPackageRootDirectory()
+    {
+        string baseDirectory = AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        DirectoryInfo? directory = new(baseDirectory);
+        if (directory.Name.Equals("app", StringComparison.OrdinalIgnoreCase) &&
+            directory.Parent is not null)
+        {
+            return directory.Parent.FullName;
+        }
+
+        return baseDirectory;
     }
 
     private static void OpenShellPath(string path)

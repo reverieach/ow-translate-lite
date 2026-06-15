@@ -268,6 +268,7 @@
                                         <Button Content="打开数据目录" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenDataDirectory_Click"/>
                                         <Button Content="打开日志文件夹" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="OpenLogsDirectory_Click"/>
                                         <Button Content="导出反馈包" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="ExportFeedbackPackage_Click"/>
+                                        <Button Content="检查更新" Style="{StaticResource GhostButtonStyle}" Margin="0,0,8,8" Click="CheckForUpdates_Click"/>
                                         <Button Content="清除本机数据" Style="{StaticResource DangerButtonStyle}" Margin="0,0,8,8" Click="ClearUserData_Click"/>
                                     </WrapPanel>
                                     <Grid Margin="0,0,0,10">
