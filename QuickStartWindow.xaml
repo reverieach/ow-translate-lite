@@ -137,6 +137,10 @@
                             <TextBlock Text="按下面 6 步完成 API、翻译区域和回话输入设置。"
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,7,0,0"/>
+                            <TextBlock Text="请先确认解压路径不包含中文字符，推荐 C:\OWTranslatorLite\ 或 D:\Tools\OWTranslatorLite\。"
+                                       Foreground="{StaticResource WarningBrush}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,7,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -152,7 +156,7 @@
                         </Border>
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="设置游戏窗口" FontSize="18" FontWeight="SemiBold"/>
-                            <TextBlock Text="在 OW 视频设置里建议使用无边框窗口或窗口化无边框。独占全屏可能让截图或翻译框显示不稳定。"
+                            <TextBlock Text="先确认本程序所在路径没有中文字符；然后在 OW 视频设置里建议使用无边框窗口或窗口化无边框。独占全屏可能让截图或翻译框显示不稳定。"
                                        Style="{StaticResource GuideBodyTextStyle}"
                                        Margin="0,6,0,12"/>
                             <Border Style="{StaticResource GuideImageFrameStyle}">

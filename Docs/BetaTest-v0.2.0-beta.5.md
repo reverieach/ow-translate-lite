@@ -5,11 +5,14 @@
 ## 使用方式
 
 1. 解压整个压缩包。
-2. 运行外层 `OWTranslatorLite.exe`。
-3. 首次启动会显示快速上手指南，也可以在主窗口左侧点击“使用说明”再次打开。
-4. 配置 DeepSeek 或 OpenAI Compatible API，选择模型后点击“开始”。
+2. 解压路径不要包含中文字符，推荐 `C:\OWTranslatorLite\` 或 `D:\Tools\OWTranslatorLite\`。
+3. 运行外层 `OWTranslatorLite.exe`。
+4. 首次启动会显示快速上手指南，也可以在主窗口左侧点击“使用说明”再次打开。
+5. 配置 DeepSeek 或 OpenAI Compatible API，选择模型后点击“开始”。
 
 DeepSeek API 需要充值余额并按量计费，聊天翻译用量通常很小，实际费用很低。
+
+如果启动时提示“当前解压路径包含中文字符”，请移动整个 `OWTranslatorLite` 文件夹到英文路径后再运行。
 
 ## 本版重点
 

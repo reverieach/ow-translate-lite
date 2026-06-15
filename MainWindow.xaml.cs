@@ -84,6 +84,7 @@ public partial class MainWindow : Window
         ApplyRunningState();
         ApplyFrameAdjustmentState();
         AddLog("就绪。正式测试建议使用 DeepSeek API。");
+        ShowInstallPathWarningIfNeeded();
         ApplyReplyHotkeyRegistration();
         ShowQuickStartIfNeeded();
     }
@@ -369,6 +370,22 @@ public partial class MainWindow : Window
         _config.Save();
         FirstRunPanel.Visibility = Visibility.Collapsed;
         AddLog("首次配置完成。");
+    }
+
+    private void ShowInstallPathWarningIfNeeded()
+    {
+        string baseDirectory = AppContext.BaseDirectory;
+        if (!ContainsCjk(baseDirectory))
+        {
+            return;
+        }
+
+        string message = "当前程序路径包含中文字符，可能导致 OCR 或 native 组件加载失败。\n\n" +
+                         "请把整个 OWTranslatorLite 文件夹移动到英文路径后再运行，例如：\n" +
+                         "C:\\OWTranslatorLite\\\n" +
+                         "D:\\Tools\\OWTranslatorLite\\";
+        AddLog("当前程序路径包含中文字符，建议移动到英文路径后使用。");
+        System.Windows.MessageBox.Show(message, "OW Translator Lite", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 
     private void ShowQuickStartIfNeeded()
@@ -1532,6 +1549,20 @@ public partial class MainWindow : Window
 
     private static bool IsFinite(double value) =>
         !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static bool ContainsCjk(string value)
+    {
+        foreach (char ch in value)
+        {
+            if ((ch >= '\u3400' && ch <= '\u9fff') ||
+                (ch >= '\uf900' && ch <= '\ufaff'))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     private static void OpenShellPath(string path)
     {

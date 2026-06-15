@@ -15,6 +15,16 @@ namespace OWTranslatorLiteLauncher
             string appDirectory = Path.Combine(rootDirectory, "app");
             string appPath = Path.Combine(appDirectory, "OWTranslatorLite.exe");
 
+            if (ContainsCjk(rootDirectory))
+            {
+                MessageBox.Show(
+                    "当前解压路径包含中文字符，可能导致 OCR 或 native 组件加载失败。\n\n请把整个 OWTranslatorLite 文件夹移动到英文路径后再运行，例如：\nC:\\OWTranslatorLite\\\nD:\\Tools\\OWTranslatorLite\\",
+                    "OW Translator Lite",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return 3;
+            }
+
             if (!File.Exists(appPath))
             {
                 MessageBox.Show(
@@ -83,6 +93,20 @@ namespace OWTranslatorLiteLauncher
             }
 
             return "\"" + value.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"";
+        }
+
+        private static bool ContainsCjk(string value)
+        {
+            foreach (char ch in value)
+            {
+                if ((ch >= '\u3400' && ch <= '\u9fff') ||
+                    (ch >= '\uf900' && ch <= '\ufaff'))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
