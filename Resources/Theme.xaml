@@ -147,6 +147,7 @@
         <Setter Property="Background" Value="{DynamicResource StartButtonBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource StartButtonBrush}"/>
         <Setter Property="Foreground" Value="White"/>
+        <Setter Property="TextElement.Foreground" Value="White"/>
         <Setter Property="Padding" Value="18,0"/>
         <Setter Property="Template">
             <Setter.Value>
@@ -182,6 +183,7 @@
         <Setter Property="Background" Value="{DynamicResource StartButtonBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource StartButtonBrush}"/>
         <Setter Property="Foreground" Value="White"/>
+        <Setter Property="TextElement.Foreground" Value="White"/>
         <Setter Property="Padding" Value="18,0"/>
         <Setter Property="Template">
             <Setter.Value>

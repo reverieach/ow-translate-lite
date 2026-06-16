@@ -110,11 +110,12 @@
                         <Button Content="打开发布页"
                                 Width="104"
                                 Click="OpenReleasePage_Click"/>
-                        <Button Content="立即更新"
-                                Width="100"
+                        <Button Width="100"
                                 Style="{StaticResource PrimaryButtonStyle}"
                                 Margin="8,0,0,0"
-                                Click="UpdateNow_Click"/>
+                                Click="UpdateNow_Click">
+                            <TextBlock Text="立即更新" Foreground="White"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>

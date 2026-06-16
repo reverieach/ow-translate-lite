@@ -80,7 +80,9 @@
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="StopButton" Content="暂停" Width="86" Click="Stop_Click"/>
-                        <Button x:Name="StartButton" Content="开始" Width="96" Foreground="White" Style="{StaticResource StartButtonStyle}" Click="Start_Click"/>
+                        <Button x:Name="StartButton" Width="96" Foreground="White" Style="{StaticResource StartButtonStyle}" Click="Start_Click">
+                            <TextBlock Text="开始" Foreground="White"/>
+                        </Button>
                     </StackPanel>
                 </Grid>
             </Border>
@@ -103,7 +105,9 @@
                             <StackPanel>
                                 <TextBlock Text="首次配置" Style="{StaticResource SectionHeaderTextStyle}"/>
                                 <TextBlock Text="选择 API、翻译区域和翻译框后即可开始。" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
-                                <Button Content="完成首次配置" Style="{StaticResource PrimaryButtonStyle}" Margin="0,12,0,0" HorizontalAlignment="Left" Click="FinishFirstRun_Click"/>
+                                <Button Style="{StaticResource PrimaryButtonStyle}" Margin="0,12,0,0" HorizontalAlignment="Left" Click="FinishFirstRun_Click">
+                                    <TextBlock Text="完成首次配置" Foreground="White"/>
+                                </Button>
                             </StackPanel>
                         </Border>
 

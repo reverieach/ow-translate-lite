@@ -303,11 +303,12 @@
                           Content="下次不再提示"
                           VerticalAlignment="Center"
                           DockPanel.Dock="Left"/>
-                <Button Content="开始配置"
-                        Width="118"
+                <Button Width="118"
                         Style="{StaticResource PrimaryButtonStyle}"
                         DockPanel.Dock="Right"
-                        Click="Close_Click"/>
+                        Click="Close_Click">
+                    <TextBlock Text="开始配置" Foreground="White"/>
+                </Button>
             </DockPanel>
         </Border>
     </Grid>
