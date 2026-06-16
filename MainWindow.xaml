@@ -80,7 +80,7 @@
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <Button x:Name="StopButton" Content="暂停" Width="86" Click="Stop_Click"/>
-                        <Button x:Name="StartButton" Content="开始" Width="96" Style="{StaticResource StartButtonStyle}" Click="Start_Click"/>
+                        <Button x:Name="StartButton" Content="开始" Width="96" Foreground="White" Style="{StaticResource StartButtonStyle}" Click="Start_Click"/>
                     </StackPanel>
                 </Grid>
             </Border>
