@@ -12,6 +12,9 @@ public sealed class ConfigStore
     private const long CrashLogMaxBytes = 1L * 1024L * 1024L;
     private const long DebugLogMaxBytes = 5L * 1024L * 1024L;
 
+    private static readonly object DataLayoutLock = new();
+    private static bool dataLayoutMaintenanceCompleted;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         WriteIndented = true,
@@ -149,15 +152,24 @@ public sealed class ConfigStore
 
     public static void InitializeDataLayout()
     {
-        Directory.CreateDirectory(AppDirectory);
-        Directory.CreateDirectory(LogsDirectory);
-        Directory.CreateDirectory(DiagnosticsDirectory);
-        CopyLegacyLogIfNeeded(LegacyRuntimeLogPath, Path.Combine(LogsDirectory, "runtime.legacy.log"));
-        CopyLegacyLogIfNeeded(LegacyCrashLogPath, Path.Combine(LogsDirectory, "crash.legacy.log"));
-        CopyLegacyLogIfNeeded(LegacyDedupeLogPath, Path.Combine(LogsDirectory, "debug.legacy-dedupe.log"));
-        RotateLogIfNeeded(RuntimeLogPath, RuntimeLogMaxBytes, 3);
-        RotateLogIfNeeded(CrashLogPath, CrashLogMaxBytes, 5);
-        RotateLogIfNeeded(DebugLogPath, DebugLogMaxBytes, 3);
+        lock (DataLayoutLock)
+        {
+            Directory.CreateDirectory(AppDirectory);
+            Directory.CreateDirectory(LogsDirectory);
+            Directory.CreateDirectory(DiagnosticsDirectory);
+            if (dataLayoutMaintenanceCompleted)
+            {
+                return;
+            }
+
+            CopyLegacyLogIfNeeded(LegacyRuntimeLogPath, Path.Combine(LogsDirectory, "runtime.legacy.log"));
+            CopyLegacyLogIfNeeded(LegacyCrashLogPath, Path.Combine(LogsDirectory, "crash.legacy.log"));
+            CopyLegacyLogIfNeeded(LegacyDedupeLogPath, Path.Combine(LogsDirectory, "debug.legacy-dedupe.log"));
+            RotateLogIfNeeded(RuntimeLogPath, RuntimeLogMaxBytes, 3);
+            RotateLogIfNeeded(CrashLogPath, CrashLogMaxBytes, 5);
+            RotateLogIfNeeded(DebugLogPath, DebugLogMaxBytes, 3);
+            dataLayoutMaintenanceCompleted = true;
+        }
     }
 
     private static void CopyLegacyLogIfNeeded(string sourcePath, string destinationPath)
