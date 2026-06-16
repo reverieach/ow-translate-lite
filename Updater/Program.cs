@@ -16,6 +16,9 @@ namespace OWTranslatorLiteUpdater
         [STAThread]
         private static int Main(string[] args)
         {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+
             Dictionary<string, string> options = ParseArgs(args);
             string rootDirectory = GetOption(options, "root", AppDomain.CurrentDomain.BaseDirectory);
             string downloadUrl = GetOption(options, "download-url", "");
@@ -24,15 +27,19 @@ namespace OWTranslatorLiteUpdater
             string launcherPath = GetOption(options, "launcher", Path.Combine(rootDirectory, "OWTranslatorLite.exe"));
             int waitPid = ParseInt(GetOption(options, "pid", ""));
 
+            UpdateProgressForm progress = new UpdateProgressForm();
+            progress.Show();
+            progress.SetStatus("准备更新...", 5);
             try
             {
                 Directory.CreateDirectory(rootDirectory);
                 string zipPath = string.IsNullOrWhiteSpace(downloadUrl)
                     ? FindManualZip(rootDirectory)
-                    : DownloadZip(rootDirectory, downloadUrl, sha256Url, releasePage);
+                    : DownloadZip(rootDirectory, downloadUrl, sha256Url, releasePage, progress);
 
                 if (string.IsNullOrWhiteSpace(zipPath) || !File.Exists(zipPath))
                 {
+                    progress.Close();
                     MessageBox.Show(
                         "没有找到更新包。\n\n请从 GitHub Release 下载最新的 OWTranslatorLite-v*-portable-win-x64.zip，并把它放到当前 OWTranslatorLite 文件夹，再重新运行 OWTranslatorLiteUpdater.exe。",
                         "OW Translator Lite Updater",
@@ -41,8 +48,19 @@ namespace OWTranslatorLiteUpdater
                     return 1;
                 }
 
+                progress.SetStatus("等待主程序退出...", 35);
                 WaitForProcessExit(waitPid);
-                InstallZip(rootDirectory, zipPath);
+                InstallZip(rootDirectory, zipPath, progress);
+                progress.SetStatus("清理更新包...", 90);
+                DeleteUpdatePackage(zipPath);
+                progress.SetStatus("更新完成。", 100);
+                MessageBox.Show(
+                    progress,
+                    "更新完成，程序将重新启动。\n\n本次更新包已删除，旧版本 app 已保留为最近一次备份。",
+                    "OW Translator Lite Updater",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                progress.Close();
                 if (File.Exists(launcherPath))
                 {
                     Process.Start(new ProcessStartInfo
@@ -57,6 +75,11 @@ namespace OWTranslatorLiteUpdater
             }
             catch (Exception ex)
             {
+                if (!progress.IsDisposed)
+                {
+                    progress.Close();
+                }
+
                 MessageBox.Show(
                     "更新失败：\n" + ex.Message + "\n\n如果自动更新不稳定，请手动下载最新 zip，放到当前 OWTranslatorLite 文件夹后重新运行 updater。",
                     "OW Translator Lite Updater",
@@ -66,7 +89,12 @@ namespace OWTranslatorLiteUpdater
             }
         }
 
-        private static string DownloadZip(string rootDirectory, string downloadUrl, string sha256Url, string releasePage)
+        private static string DownloadZip(
+            string rootDirectory,
+            string downloadUrl,
+            string sha256Url,
+            string releasePage,
+            UpdateProgressForm progress)
         {
             string updatesDirectory = Path.Combine(rootDirectory, "updates");
             Directory.CreateDirectory(updatesDirectory);
@@ -76,9 +104,11 @@ namespace OWTranslatorLiteUpdater
                 using (WebClient client = new WebClient())
                 {
                     client.Headers.Add("User-Agent", "OWTranslatorLiteUpdater");
-                    client.DownloadFile(downloadUrl, zipPath);
+                    progress.SetStatus("正在下载更新包...", 10);
+                    DownloadFileWithProgress(client, downloadUrl, zipPath, progress);
                     if (!string.IsNullOrWhiteSpace(sha256Url))
                     {
+                        progress.SetStatus("正在校验更新包...", 32);
                         string shaText = client.DownloadString(sha256Url);
                         string expected = ExtractSha256(shaText);
                         if (!string.IsNullOrWhiteSpace(expected))
@@ -107,6 +137,46 @@ namespace OWTranslatorLiteUpdater
             return zipPath;
         }
 
+        private static void DownloadFileWithProgress(
+            WebClient client,
+            string downloadUrl,
+            string destinationPath,
+            UpdateProgressForm progress)
+        {
+            Exception error = null;
+            using (ManualResetEvent completed = new ManualResetEvent(false))
+            {
+                client.DownloadProgressChanged += delegate (object sender, DownloadProgressChangedEventArgs e)
+                {
+                    int value = 10 + (e.ProgressPercentage * 20 / 100);
+                    progress.SetStatus("正在下载更新包... " + e.ProgressPercentage + "%", value);
+                };
+                client.DownloadFileCompleted += delegate (object sender, System.ComponentModel.AsyncCompletedEventArgs e)
+                {
+                    if (e.Error != null)
+                    {
+                        error = e.Error;
+                    }
+                    else if (e.Cancelled)
+                    {
+                        error = new OperationCanceledException("更新包下载已取消。");
+                    }
+
+                    completed.Set();
+                };
+                client.DownloadFileAsync(new Uri(downloadUrl), destinationPath);
+                while (!completed.WaitOne(100))
+                {
+                    Application.DoEvents();
+                }
+            }
+
+            if (error != null)
+            {
+                throw error;
+            }
+        }
+
         private static string FindManualZip(string rootDirectory)
         {
             string[] files = Directory.GetFiles(rootDirectory, "OWTranslatorLite-v*-portable-win-x64.zip", SearchOption.TopDirectoryOnly);
@@ -122,12 +192,13 @@ namespace OWTranslatorLiteUpdater
             return files[0];
         }
 
-        private static void InstallZip(string rootDirectory, string zipPath)
+        private static void InstallZip(string rootDirectory, string zipPath, UpdateProgressForm progress)
         {
             string extractDirectory = Path.Combine(Path.GetTempPath(), "OWTranslatorLiteUpdate-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(extractDirectory);
             try
             {
+                progress.SetStatus("正在解压更新包...", 45);
                 ZipFile.ExtractToDirectory(zipPath, extractDirectory);
                 string packageRoot = FindPackageRoot(extractDirectory);
                 string packageApp = Path.Combine(packageRoot, "app");
@@ -142,14 +213,18 @@ namespace OWTranslatorLiteUpdater
                 Directory.CreateDirectory(backupRoot);
                 try
                 {
+                    progress.SetStatus("正在备份当前版本...", 58);
                     if (Directory.Exists(currentApp))
                     {
                         Directory.Move(currentApp, backupApp);
                     }
 
+                    progress.SetStatus("正在安装新版本...", 70);
                     CopyDirectory(packageApp, currentApp);
+                    progress.SetStatus("正在更新启动文件...", 82);
                     CopyIfExists(Path.Combine(packageRoot, "README-BETA.md"), Path.Combine(rootDirectory, "README-BETA.md"));
                     CopyIfExists(Path.Combine(packageRoot, "OWTranslatorLite.exe"), Path.Combine(rootDirectory, "OWTranslatorLite.exe"));
+                    CleanOldBackups(rootDirectory, backupRoot);
                 }
                 catch
                 {
@@ -165,6 +240,33 @@ namespace OWTranslatorLiteUpdater
             {
                 TryDeleteDirectory(extractDirectory);
             }
+        }
+
+        private static void CleanOldBackups(string rootDirectory, string keepBackupRoot)
+        {
+            string backupDirectory = Path.Combine(rootDirectory, ".update-backup");
+            if (!Directory.Exists(backupDirectory))
+            {
+                return;
+            }
+
+            string keepFullPath = Path.GetFullPath(keepBackupRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            foreach (string directory in Directory.GetDirectories(backupDirectory))
+            {
+                string currentFullPath = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(currentFullPath, keepFullPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                TryDeleteDirectory(directory);
+            }
+        }
+
+        private static void DeleteUpdatePackage(string zipPath)
+        {
+            TryDeleteFile(zipPath);
+            TryDeleteFile(zipPath + ".sha256.txt");
         }
 
         private static string FindPackageRoot(string extractDirectory)
@@ -342,6 +444,93 @@ namespace OWTranslatorLiteUpdater
             {
                 // Temporary cleanup is best-effort.
             }
+        }
+
+        private static void TryDeleteFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            catch
+            {
+                // Cleanup is best-effort.
+            }
+        }
+    }
+
+    internal sealed class UpdateProgressForm : Form
+    {
+        private readonly Label statusLabel;
+        private readonly ProgressBar progressBar;
+
+        public UpdateProgressForm()
+        {
+            Text = "OW Translator Lite Updater";
+            StartPosition = FormStartPosition.CenterScreen;
+            FormBorderStyle = FormBorderStyle.FixedDialog;
+            MaximizeBox = false;
+            MinimizeBox = false;
+            ClientSize = new System.Drawing.Size(420, 132);
+
+            Label titleLabel = new Label
+            {
+                AutoSize = false,
+                Text = "正在更新 OW Translator Lite",
+                Font = new System.Drawing.Font("Microsoft YaHei UI", 11F, System.Drawing.FontStyle.Bold),
+                Left = 24,
+                Top = 20,
+                Width = 372,
+                Height = 24
+            };
+            Controls.Add(titleLabel);
+
+            statusLabel = new Label
+            {
+                AutoSize = false,
+                Text = "准备更新...",
+                Font = new System.Drawing.Font("Microsoft YaHei UI", 9F),
+                Left = 24,
+                Top = 54,
+                Width = 372,
+                Height = 22
+            };
+            Controls.Add(statusLabel);
+
+            progressBar = new ProgressBar
+            {
+                Left = 24,
+                Top = 86,
+                Width = 372,
+                Height = 18,
+                Minimum = 0,
+                Maximum = 100,
+                Value = 0,
+                Style = ProgressBarStyle.Continuous
+            };
+            Controls.Add(progressBar);
+        }
+
+        public void SetStatus(string message, int progress)
+        {
+            if (IsDisposed)
+            {
+                return;
+            }
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action<string, int>(SetStatus), message, progress);
+                return;
+            }
+
+            statusLabel.Text = message;
+            progressBar.Value = Math.Max(progressBar.Minimum, Math.Min(progressBar.Maximum, progress));
+            Refresh();
+            Application.DoEvents();
         }
     }
 }
