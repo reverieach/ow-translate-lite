@@ -8,6 +8,7 @@ The v1.0.0 portable package uses an outer launcher so the user-facing root stays
 OWTranslatorLite/
   OWTranslatorLite.exe      # small outer launcher
   OWTranslatorLiteUpdater.exe # small outer updater
+  OWTranslatorLiteUninstall.exe # small outer uninstaller
   README.md
   app/
     OWTranslatorLite.exe    # real self-contained WPF app
@@ -33,6 +34,7 @@ The script:
 - publishes the real app into `dist/OWTranslatorLite/app/`;
 - builds the outer launcher as `dist/OWTranslatorLite/OWTranslatorLite.exe`;
 - builds the outer updater as `dist/OWTranslatorLite/OWTranslatorLiteUpdater.exe`;
+- builds the outer uninstaller as `dist/OWTranslatorLite/OWTranslatorLiteUninstall.exe`;
 - copies the matching `Docs/Release-vX.Y.Z.md` as `README.md` when present;
 - creates `dist/OWTranslatorLite-vX.Y.Z-portable-win-x64.zip`;
 - creates `dist/OWTranslatorLite-vX.Y.Z-portable-win-x64.zip.sha256.txt`.
@@ -45,3 +47,4 @@ The script:
 - Do not publish or zip from routine code changes; package only for a tester/release build.
 - If the launcher changes, build and smoke-test the package from the outer `OWTranslatorLite.exe`, not only from `app/OWTranslatorLite.exe`.
 - If the updater changes, test both paths: automatic update from a release asset URL and manual update with a zip placed in the outer package folder.
+- If the uninstaller changes, test it only from a disposable package copy; it deletes the package root and `%AppData%\OWTranslatorLite`.

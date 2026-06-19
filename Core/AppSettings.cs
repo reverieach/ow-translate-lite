@@ -22,6 +22,7 @@ public sealed class AppSettings
     public string? LegacyPlainTextApiKey { get; set; }
     public string Model { get; set; } = "deepseek-v4-flash";
     public string ReplyTargetLanguage { get; set; } = "auto";
+    public bool AutoCopyReplyTranslation { get; set; } = true;
     public bool EnableReplyHotkey { get; set; }
     public string ReplyHotkey { get; set; } = "Ctrl+Shift+Enter";
     public int CaptureIntervalMs { get; set; } = 300;

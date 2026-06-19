@@ -59,6 +59,7 @@
     <Geometry x:Key="IconBug">M8,8 H16 V18 H8 Z M9,4 L11,8 M15,4 L13,8 M3,13 H8 M16,13 H21 M4,19 L8,16 M20,19 L16,16</Geometry>
     <Geometry x:Key="IconTrash">M4,7 H20 M10,11 V17 M14,11 V17 M6,7 L7,21 H17 L18,7 M9,7 V4 H15 V7</Geometry>
     <Geometry x:Key="IconChevronDown">M6,9 L12,15 L18,9</Geometry>
+    <Geometry x:Key="IconCopy">M8,8 H20 V20 H8 Z M4,4 H16 V8 M4,4 V16 H8</Geometry>
     <Geometry x:Key="IconRadioTower">M12,12 V21 M8,6 A6,6 0 0 0 8,18 M16,6 A6,6 0 0 1 16,18 M5,3 A10,10 0 0 0 5,21 M19,3 A10,10 0 0 1 19,21</Geometry>
 
     <Style x:Key="IconPathStyle" TargetType="{x:Type Path}">

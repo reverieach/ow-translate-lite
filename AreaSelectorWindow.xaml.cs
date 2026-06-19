@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using OwTranslateLite.Core;
 using KeyEventArgs = System.Windows.Input.KeyEventArgs;
 using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 using Point = System.Windows.Point;
@@ -69,7 +70,7 @@ public partial class AreaSelectorWindow : Window
         double top = Math.Min(_start.Y, current.Y);
         double width = Math.Abs(current.X - _start.X);
         double height = Math.Abs(current.Y - _start.Y);
-        if (width < 80 || height < 30)
+        if (width < ScreenBoundsService.MinimumCaptureWidth || height < ScreenBoundsService.MinimumCaptureHeight)
         {
             Close();
             return;
@@ -78,7 +79,18 @@ public partial class AreaSelectorWindow : Window
         Point screenTopLeft = PointToScreen(new Point(left, top));
         Point screenBottomRight = PointToScreen(new Point(left + width, top + height));
         Rect rect = new(screenTopLeft.X, screenTopLeft.Y, screenBottomRight.X - screenTopLeft.X, screenBottomRight.Y - screenTopLeft.Y);
-        SelectionCompleted?.Invoke(this, rect);
+        if (!ScreenBoundsService.TryClipToVirtualScreen(rect, out Rect clipped))
+        {
+            System.Windows.MessageBox.Show(
+                "选择的聊天区域太小或不在当前屏幕范围内，请重新选择聊天区域。",
+                "OW Translator Lite",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            Close();
+            return;
+        }
+
+        SelectionCompleted?.Invoke(this, clipped);
         Close();
     }
 

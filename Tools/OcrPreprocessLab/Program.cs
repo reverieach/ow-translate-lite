@@ -13,7 +13,7 @@ Console.OutputEncoding = Encoding.UTF8;
 string repoRoot = FindRepoRoot(AppContext.BaseDirectory);
 string inputDir = "";
 string outputDir = "";
-string runMode = "all"; // "basic", "all", "sweep"
+string runMode = "all"; // "basic", "all", "sweep", "gate"
 
 // Parse CLI args
 for (int i = 0; i < args.Length; i++)
@@ -75,6 +75,12 @@ if (imagePaths.Count == 0)
     }
 
     Environment.ExitCode = 2;
+    return;
+}
+
+if (string.Equals(runMode, "gate", StringComparison.OrdinalIgnoreCase))
+{
+    RunGateLab(inputDir, outputDir, imagePaths);
     return;
 }
 
@@ -162,6 +168,61 @@ File.WriteAllText(reportPath, BuildEnhancedReport(inputDir, outputDir, capturedD
 Console.WriteLine();
 Console.WriteLine($"Report: {reportPath}");
 Console.WriteLine($"Suggested overall mode: {GetSuggestedMode(results)}");
+
+static void RunGateLab(string inputDir, string outputDir, IReadOnlyList<string> imagePaths)
+{
+    TextPresenceGate textGate = new();
+    FrameDiffGate diffGate = new();
+    List<GateLabResult> results = [];
+    foreach (string imagePath in imagePaths)
+    {
+        using Bitmap source = new(imagePath);
+        FrameDiffResult diff = diffGate.Observe(source);
+        TextPresenceResult text = textGate.Observe(source);
+        bool triggered = diff.HasChanged && text.HasLikelyText;
+        results.Add(new GateLabResult(imagePath, diff.HasChanged, text, triggered));
+        Console.WriteLine(
+            $"{Path.GetFileName(imagePath)} | diff={diff.HasChanged} | triggered={triggered} | score={text.Score:0.##} components={text.CandidateComponentCount} lines={text.CandidateLineCount} reason={text.Reason}");
+    }
+
+    string reportPath = Path.Combine(outputDir, "gate-report.md");
+    File.WriteAllText(reportPath, BuildGateReport(inputDir, outputDir, results), new UTF8Encoding(false));
+    Console.WriteLine();
+    Console.WriteLine($"Gate report: {reportPath}");
+}
+
+static string BuildGateReport(string inputDir, string outputDir, IReadOnlyList<GateLabResult> results)
+{
+    int changed = results.Count(static result => result.DiffChanged);
+    int triggered = results.Count(static result => result.Triggered);
+    int rejected = results.Count(static result => result.DiffChanged && !result.Triggered);
+    StringBuilder builder = new();
+    builder.AppendLine("# OCR Gate Lab Report");
+    builder.AppendLine();
+    builder.AppendLine($"- Input: `{inputDir}`");
+    builder.AppendLine($"- Output: `{outputDir}`");
+    builder.AppendLine($"- Images: {results.Count}");
+    builder.AppendLine($"- Diff changed: {changed}");
+    builder.AppendLine($"- Estimated OCR wakeups: {triggered}");
+    builder.AppendLine($"- Gate rejected: {rejected}");
+    builder.AppendLine();
+    builder.AppendLine("| Image | Diff | Triggered | Score | Components | Lines | Reason |");
+    builder.AppendLine("| --- | --- | --- | ---: | ---: | ---: | --- |");
+    foreach (GateLabResult result in results)
+    {
+        builder.AppendLine(
+            $"| {Path.GetFileName(result.ImagePath)} | {result.DiffChanged} | {result.Triggered} | {result.Text.Score:0.##} | {result.Text.CandidateComponentCount} | {result.Text.CandidateLineCount} | {result.Text.Reason} |");
+    }
+
+    builder.AppendLine();
+    builder.AppendLine("## Possible False Negatives");
+    foreach (GateLabResult result in results.Where(static result => result.DiffChanged && !result.Triggered && result.Text.Score >= 30))
+    {
+        builder.AppendLine($"- `{result.ImagePath}` score={result.Text.Score:0.##} reason={result.Text.Reason}");
+    }
+
+    return builder.ToString();
+}
 
 // ============================================================
 // Image collection
@@ -457,6 +518,12 @@ static bool IsCjk(char ch) => ch is >= '\u4E00' and <= '\u9FFF';
 // ============================================================
 
 internal sealed record PreprocessVariant(string Name, Func<Bitmap, Bitmap> Prepare);
+
+internal sealed record GateLabResult(
+    string ImagePath,
+    bool DiffChanged,
+    TextPresenceResult Text,
+    bool Triggered);
 
 internal sealed record LabResult(
     string ImagePath,

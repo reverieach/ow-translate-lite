@@ -113,6 +113,7 @@ public sealed class DiagnosticsService
         builder.AppendLine("ApiKey: [redacted]");
         builder.AppendLine($"Model: {settings.Model}");
         builder.AppendLine($"ReplyTargetLanguage: {settings.ReplyTargetLanguage}");
+        builder.AppendLine($"AutoCopyReplyTranslation: {settings.AutoCopyReplyTranslation}");
         builder.AppendLine($"EnableReplyHotkey: {settings.EnableReplyHotkey}");
         builder.AppendLine($"ReplyHotkey: {settings.ReplyHotkey}");
         builder.AppendLine($"CaptureIntervalMs: {settings.CaptureIntervalMs}");

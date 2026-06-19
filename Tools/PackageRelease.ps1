@@ -81,6 +81,23 @@ if ($LASTEXITCODE -ne 0) {
     throw "Updater build failed."
 }
 
+$uninstallerPath = Join-Path $packageRoot "OWTranslatorLiteUninstall.exe"
+$uninstallerSource = Join-Path $repoRoot "Uninstaller\Program.cs"
+$uninstallerArgs = @(
+    "/nologo",
+    "/target:winexe",
+    "/platform:x64",
+    "/optimize+",
+    "/win32icon:$iconPath",
+    "/reference:System.Windows.Forms.dll",
+    "/out:$uninstallerPath",
+    $uninstallerSource
+)
+& $csc $uninstallerArgs
+if ($LASTEXITCODE -ne 0) {
+    throw "Uninstaller build failed."
+}
+
 $readmeSource = Join-Path $repoRoot "Docs\Release-v$version.md"
 if (-not (Test-Path -LiteralPath $readmeSource)) {
     $readmeSource = Join-Path $repoRoot "README.md"

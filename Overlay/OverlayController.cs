@@ -10,6 +10,7 @@ public sealed class OverlayController
 
     public event EventHandler? BoundsChangedByUser;
     public event EventHandler<ReplySubmittedEventArgs>? ReplySubmitted;
+    public event EventHandler<string>? CopyReplyRequested;
     public event EventHandler<string>? ReplyTargetLanguageChanged;
     public event EventHandler? ReplyEditingStarted;
     public event EventHandler? ReplyModeExited;
@@ -25,6 +26,7 @@ public sealed class OverlayController
             _window.LocationChanged += OverlayWindow_BoundsChanged;
             _window.SizeChanged += OverlayWindow_BoundsChanged;
             _window.ReplySubmitted += (_, args) => ReplySubmitted?.Invoke(this, args);
+            _window.CopyReplyRequested += (_, text) => CopyReplyRequested?.Invoke(this, text);
             _window.ReplyEditingStarted += (_, args) => ReplyEditingStarted?.Invoke(this, args);
             _window.ReplyTargetLanguageChanged += (_, language) => ReplyTargetLanguageChanged?.Invoke(this, language);
             _window.ReplyModeExited += (_, args) => ReplyModeExited?.Invoke(this, args);
@@ -124,6 +126,11 @@ public sealed class OverlayController
     public void ClearReplyInput()
     {
         _window?.ClearReplyInput();
+    }
+
+    public void SetReplyTranslation(string translated)
+    {
+        _window?.SetReplyTranslation(translated);
     }
 
     private void OverlayWindow_BoundsChanged(object? sender, EventArgs e)

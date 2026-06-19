@@ -29,9 +29,11 @@
   <ItemGroup>
     <Compile Remove="Launcher\**\*.cs"/>
     <Compile Remove="Updater\**\*.cs"/>
+    <Compile Remove="Uninstaller\**\*.cs"/>
     <Compile Remove="Tools\**\*.cs"/>
     <None Remove="Launcher\**\*"/>
     <None Remove="Updater\**\*"/>
+    <None Remove="Uninstaller\**\*"/>
     <None Remove="Tools\**\*"/>
   </ItemGroup>
 

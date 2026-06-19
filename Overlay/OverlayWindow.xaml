@@ -216,6 +216,8 @@
                         <ColumnDefinition Width="82"/>
                         <ColumnDefinition Width="6"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="6"/>
+                        <ColumnDefinition Width="34"/>
                     </Grid.ColumnDefinitions>
                     <ComboBox x:Name="ReplyTargetCombo"
                               Grid.Column="0"
@@ -236,6 +238,22 @@
                              CaretBrush="#64D2FF"
                              Padding="10,5"
                              VerticalContentAlignment="Center"/>
+                    <Button x:Name="CopyReplyButton"
+                            Grid.Column="4"
+                            Width="32"
+                            Height="32"
+                            Padding="0"
+                            Background="{StaticResource OverlayInputBrush}"
+                            BorderBrush="#44FFFFFF"
+                            BorderThickness="1"
+                            ToolTip="复制译文">
+                        <Path Data="{StaticResource IconCopy}"
+                              Stroke="#D7F3FF"
+                              StrokeThickness="1.8"
+                              Stretch="Uniform"
+                              Width="15"
+                              Height="15"/>
+                    </Button>
                 </Grid>
             </Border>
         </Grid>

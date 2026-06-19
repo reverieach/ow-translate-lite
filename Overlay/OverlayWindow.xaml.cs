@@ -33,6 +33,7 @@ public partial class OverlayWindow : Window
     private string _replyTargetLanguage = "auto";
     private string _effectiveReplyLanguage = "en";
     private bool _isDragging;
+    private bool _hasReplyTranslation;
     private WpfPoint _dragStartMouse;
     private double _dragStartLeft;
     private double _dragStartTop;
@@ -49,9 +50,12 @@ public partial class OverlayWindow : Window
         ReplyInputBox.PreviewKeyDown += ReplyInputBox_PreviewKeyDown;
         ReplyInputBox.GotKeyboardFocus += (_, _) => BeginReplyEditing();
         ReplyTargetCombo.SelectionChanged += ReplyTargetCombo_SelectionChanged;
+        CopyReplyButton.Click += CopyReplyButton_Click;
+        CopyReplyButton.IsEnabled = false;
     }
 
     public event EventHandler<ReplySubmittedEventArgs>? ReplySubmitted;
+    public event EventHandler<string>? CopyReplyRequested;
     public event EventHandler<string>? ReplyTargetLanguageChanged;
     public event EventHandler? ReplyEditingStarted;
     public event EventHandler? ReplyModeExited;
@@ -73,6 +77,8 @@ public partial class OverlayWindow : Window
     public void EnterReplyMode(string replyTargetLanguage, string effectiveLanguage)
     {
         _isReplyMode = true;
+        _hasReplyTranslation = false;
+        CopyReplyButton.IsEnabled = false;
         SetReplyTargetLanguage(replyTargetLanguage, effectiveLanguage);
         ApplyReplyInputVisibility();
         ApplyClickThrough(false);
@@ -119,10 +125,30 @@ public partial class OverlayWindow : Window
     public void ClearReplyInput()
     {
         ReplyInputBox.Clear();
+        _hasReplyTranslation = false;
+        CopyReplyButton.IsEnabled = false;
         Keyboard.ClearFocus();
         _isReplyMode = false;
         ApplyReplyInputVisibility();
         ApplyClickThrough(_settings?.OverlayClickThrough == true);
+    }
+
+    public void SetReplyTranslation(string translated)
+    {
+        _isReplyMode = true;
+        ReplyInputBox.Text = translated;
+        ReplyInputBox.SelectAll();
+        _hasReplyTranslation = !string.IsNullOrWhiteSpace(translated);
+        CopyReplyButton.IsEnabled = _hasReplyTranslation;
+        ApplyReplyInputVisibility();
+        ApplyClickThrough(false);
+        Show();
+        Activate();
+        Dispatcher.BeginInvoke(() =>
+        {
+            ReplyInputBox.Focus();
+            Keyboard.Focus(ReplyInputBox);
+        }, System.Windows.Threading.DispatcherPriority.Input);
     }
 
     public void UpdateRecords(IReadOnlyList<TranslationRecord> records)
@@ -394,6 +420,18 @@ public partial class OverlayWindow : Window
         }
 
         ReplySubmitted?.Invoke(this, new ReplySubmittedEventArgs(text, _replyTargetLanguage, _effectiveReplyLanguage));
+    }
+
+    private void CopyReplyButton_Click(object sender, RoutedEventArgs e)
+    {
+        string text = ReplyInputBox.Text.Trim();
+        if (!_hasReplyTranslation || string.IsNullOrWhiteSpace(text))
+        {
+            SetReplyStatus("没有可复制的译文");
+            return;
+        }
+
+        CopyReplyRequested?.Invoke(this, text);
     }
 
     private void ReplyTargetCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)

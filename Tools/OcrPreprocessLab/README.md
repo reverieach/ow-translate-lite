@@ -14,6 +14,7 @@ Optional arguments:
 E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\OcrPreprocessLab\OcrPreprocessLab.csproj -c Release -- --mode basic
 E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\OcrPreprocessLab\OcrPreprocessLab.csproj -c Release -- --mode all
 E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\OcrPreprocessLab\OcrPreprocessLab.csproj -c Release -- --mode sweep
+E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\OcrPreprocessLab\OcrPreprocessLab.csproj -c Release -- --mode gate
 E:\rstgametranslation\.dotnet\dotnet.exe run --project Tools\OcrPreprocessLab\OcrPreprocessLab.csproj -c Release -- --input E:\path\to\screenshots --output E:\path\to\report
 ```
 
@@ -22,5 +23,6 @@ Modes:
 - `basic`: production `ColorPreserving` only.
 - `all`: production pipeline plus grayscale baselines and no-sharpen comparison.
 - `sweep`: production pipeline plus contrast/gamma/scale parameter sweeps.
+- `gate`: skip OCR and evaluate the lightweight text-presence gate, writing `gate-report.md` with diff, score, component count, line count, and trigger decisions.
 
 Auxiliary color sampling scripts live in `Tools\sample_colors.py` and `Tools\sample_colors_enhanced.py`. Run them from the repository root after collecting `captured-screenshots\`; they are exploratory and may install/use Python packages locally.

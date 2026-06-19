@@ -16,6 +16,7 @@ namespace OwTranslateLite;
 public partial class MainWindow : Window
 {
     private static readonly TimeSpan OverlayIdleHideDelay = TimeSpan.FromSeconds(6);
+    private static readonly TimeSpan TextGateHeartbeatInterval = TimeSpan.FromSeconds(5);
     private const int MinSamplingIntervalMs = 250;
     private const int MaxSamplingIntervalMs = 300;
     private const int BurstOcrFrameCount = 3;
@@ -45,6 +46,8 @@ public partial class MainWindow : Window
     private CancellationTokenSource? _updateCheckCts;
     private readonly OcrEngineManager _ocrEngineManager = new();
     private readonly FrameDiffGate _frameDiffGate = new();
+    private readonly TextPresenceGate _textPresenceGate = new();
+    private readonly ClipboardService _clipboardService = new();
     private readonly Queue<ParsedChatLine> _translationQueue = [];
     private readonly object _translationQueueLock = new();
     private readonly TranslationQueueStatusTracker _translationQueueStatus = new();
@@ -58,6 +61,8 @@ public partial class MainWindow : Window
     private bool _isLoadingSettings;
     private bool _settingsLoaded;
     private bool _isAdjustingTranslationFrame;
+    private DateTime _lastTextGateOcrAt = DateTime.Now;
+    private int _consecutiveTextGateRejects;
     private int _burstOcrFramesRemaining;
     private int _consecutiveNoChatFrames;
     private int _runGeneration;
@@ -71,6 +76,7 @@ public partial class MainWindow : Window
         _replyHotKey.Pressed += (_, _) => ToggleReplyMode();
         _overlayController.BoundsChangedByUser += Overlay_BoundsChanged;
         _overlayController.ReplySubmitted += Overlay_ReplySubmitted;
+        _overlayController.CopyReplyRequested += Overlay_CopyReplyRequested;
         _overlayController.ReplyEditingStarted += Overlay_ReplyEditingStarted;
         _overlayController.ReplyTargetLanguageChanged += Overlay_ReplyTargetLanguageChanged;
         _overlayController.ReplyModeExited += Overlay_ReplyModeExited;
@@ -130,6 +136,7 @@ public partial class MainWindow : Window
             ClickThroughCheck.IsChecked = settings.OverlayClickThrough;
             KeepOverlayVisibleCheck.IsChecked = settings.KeepOverlayVisible;
             ReplyInputBarCheck.IsChecked = settings.ShowReplyInputBar;
+            AutoCopyReplyCheck.IsChecked = settings.AutoCopyReplyTranslation;
             ReplyHotkeyCheck.IsChecked = settings.EnableReplyHotkey;
             SelectCombo(ReplyHotkeyCombo, settings.ReplyHotkey);
             SelectCombo(ThemeModeCombo, settings.ThemeMode);
@@ -164,6 +171,7 @@ public partial class MainWindow : Window
         settings.OverlayClickThrough = ClickThroughCheck.IsChecked == true;
         settings.KeepOverlayVisible = KeepOverlayVisibleCheck.IsChecked == true;
         settings.ShowReplyInputBar = ReplyInputBarCheck.IsChecked == true;
+        settings.AutoCopyReplyTranslation = AutoCopyReplyCheck.IsChecked == true;
         settings.EnableReplyHotkey = ReplyHotkeyCheck.IsChecked == true;
         settings.ReplyHotkey = GetComboText(ReplyHotkeyCombo);
         settings.ThemeMode = ThemeService.Normalize(GetComboText(ThemeModeCombo));
@@ -849,9 +857,27 @@ public partial class MainWindow : Window
                 System.Windows.Rect captureRegion = _config.Settings.CaptureRegion.ToRect();
                 using System.Drawing.Bitmap bitmap = ScreenCaptureService.Capture(captureRegion);
                 FrameDiffResult diff = _frameDiffGate.Observe(bitmap);
-                if (diff.HasChanged)
+                if (_burstOcrFramesRemaining <= 0 && diff.HasChanged)
                 {
-                    _burstOcrFramesRemaining = BurstOcrFrameCount;
+                    TextPresenceResult textPresence = _textPresenceGate.Observe(bitmap);
+                    bool heartbeat = DateTime.Now - _lastTextGateOcrAt >= TextGateHeartbeatInterval;
+                    if (textPresence.HasLikelyText || heartbeat)
+                    {
+                        _burstOcrFramesRemaining = BurstOcrFrameCount;
+                        _lastTextGateOcrAt = DateTime.Now;
+                        _consecutiveTextGateRejects = 0;
+                        AppendDedupeLog(textPresence.HasLikelyText
+                            ? $"text-gate accepted score={textPresence.Score:0.##} components={textPresence.CandidateComponentCount} lines={textPresence.CandidateLineCount} reason={textPresence.Reason}"
+                            : $"text-gate heartbeat score={textPresence.Score:0.##} components={textPresence.CandidateComponentCount} lines={textPresence.CandidateLineCount} reason={textPresence.Reason}");
+                    }
+                    else
+                    {
+                        _consecutiveTextGateRejects++;
+                        if (_consecutiveTextGateRejects % 10 == 1)
+                        {
+                            AppendDedupeLog($"text-gate rejected score={textPresence.Score:0.##} components={textPresence.CandidateComponentCount} lines={textPresence.CandidateLineCount} rejects={_consecutiveTextGateRejects} reason={textPresence.Reason}");
+                        }
+                    }
                 }
 
                 if (_burstOcrFramesRemaining > 0)
@@ -902,6 +928,19 @@ public partial class MainWindow : Window
             }
             catch (OperationCanceledException)
             {
+                break;
+            }
+            catch (InvalidCaptureRegionException ex)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (IsActiveGeneration(generation))
+                    {
+                        AddLog($"错误：{ex.Message}");
+                        StopLoop(hideOverlay: true, clearOverlay: false);
+                        StatusText.Text = "已暂停";
+                    }
+                });
                 break;
             }
             catch (Exception ex)
@@ -1143,6 +1182,8 @@ public partial class MainWindow : Window
             _frameDiffGate.Reset();
             _burstOcrFramesRemaining = 0;
             _consecutiveNoChatFrames = 0;
+            _consecutiveTextGateRejects = 0;
+            _lastTextGateOcrAt = DateTime.Now;
         }
 
         if (resetOcrEngine)
@@ -1179,6 +1220,8 @@ public partial class MainWindow : Window
         _isRunning = false;
         _burstOcrFramesRemaining = 0;
         _consecutiveNoChatFrames = 0;
+        _consecutiveTextGateRejects = 0;
+        _lastTextGateOcrAt = DateTime.Now;
         ClearTranslationQueue();
         _coordinator?.ClearPendingTranslations();
         ApplyRunningState();
@@ -1323,11 +1366,31 @@ public partial class MainWindow : Window
                 return;
             }
 
-            System.Windows.Clipboard.SetText(translated);
-            _overlayController.ClearReplyInput();
-            _overlayController.SetReplyStatus($"已复制：{LimitReplyStatus(translated)}");
-            _isReplyModeActive = false;
-            AddLog($"回话已复制：{translated}");
+            if (!_config.Settings.AutoCopyReplyTranslation)
+            {
+                _overlayController.SetReplyTranslation(translated);
+                _overlayController.SetReplyStatus($"已翻译：{LimitReplyStatus(translated)}");
+                _isReplyModeActive = true;
+                AddLog($"回话已翻译：{translated}");
+                return;
+            }
+
+            ClipboardSetResult copyResult = await _clipboardService.SetTextWithRetryAsync(
+                translated,
+                _replyTranslationCts.Token);
+            if (copyResult.Succeeded)
+            {
+                _overlayController.ClearReplyInput();
+                _overlayController.SetReplyStatus($"已复制：{LimitReplyStatus(translated)}");
+                _isReplyModeActive = false;
+                AddLog($"回话已复制：{translated}");
+                return;
+            }
+
+            _overlayController.SetReplyTranslation(translated);
+            _overlayController.SetReplyStatus("译文已生成，剪贴板被占用，请手动复制");
+            _isReplyModeActive = true;
+            AddLog($"回话已翻译但复制失败：{FormatClipboardFailure(copyResult)}");
         }
         catch (OperationCanceledException)
         {
@@ -1344,6 +1407,44 @@ public partial class MainWindow : Window
             _replyTranslationCts = null;
             _overlayController.SetReplyTargetLanguage(_config.Settings.ReplyTargetLanguage, ResolveReplyTargetLanguage());
         }
+    }
+
+    private async void Overlay_CopyReplyRequested(object? sender, string translated)
+    {
+        if (string.IsNullOrWhiteSpace(translated))
+        {
+            _overlayController.SetReplyStatus("没有可复制的译文");
+            return;
+        }
+
+        try
+        {
+            ClipboardSetResult result = await _clipboardService.SetTextWithRetryAsync(translated, CancellationToken.None);
+            if (result.Succeeded)
+            {
+                _overlayController.ClearReplyInput();
+                _overlayController.SetReplyStatus($"已复制：{LimitReplyStatus(translated)}");
+                _isReplyModeActive = false;
+                AddLog($"回话已复制：{translated}");
+                return;
+            }
+
+            _overlayController.SetReplyStatus("剪贴板被占用，请稍后再试");
+            AddLog($"回话手动复制失败：{FormatClipboardFailure(result)}");
+        }
+        catch (Exception ex)
+        {
+            _overlayController.SetReplyStatus($"复制失败：{LimitReplyStatus(ex.Message)}");
+            AddLog($"回话手动复制失败：{ex.Message}");
+        }
+    }
+
+    private static string FormatClipboardFailure(ClipboardSetResult result)
+    {
+        string owner = string.IsNullOrWhiteSpace(result.OwnerDescription)
+            ? "未知占用方"
+            : result.OwnerDescription;
+        return $"{result.ErrorMessage}；尝试 {result.Attempts} 次；占用：{owner}";
     }
 
     private void Overlay_ReplyTargetLanguageChanged(object? sender, string language)

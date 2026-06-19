@@ -225,6 +225,18 @@
                                               Checked="ReplyHotkeySettings_Changed"
                                               Unchecked="ReplyHotkeySettings_Changed"/>
                                 </Grid>
+                                <Grid Margin="0,8,0,0" MinHeight="30">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="自动复制回话译文" VerticalAlignment="Center"/>
+                                    <CheckBox x:Name="AutoCopyReplyCheck"
+                                              Grid.Column="1"
+                                              Style="{StaticResource SwitchCheckBoxStyle}"
+                                              Checked="OverlaySettings_Changed"
+                                              Unchecked="OverlaySettings_Changed"/>
+                                </Grid>
                                 <ComboBox x:Name="ReplyHotkeyCombo"
                                           Margin="0,6,0,0"
                                           SelectionChanged="ReplyHotkeySettings_Changed">
