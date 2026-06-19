@@ -5,6 +5,8 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.Json;
+using OcrPreprocessLab;
 using OwTranslateLite.Core;
 using OwTranslateLite.Ocr;
 
@@ -13,7 +15,13 @@ Console.OutputEncoding = Encoding.UTF8;
 string repoRoot = FindRepoRoot(AppContext.BaseDirectory);
 string inputDir = "";
 string outputDir = "";
-string runMode = "all"; // "basic", "all", "sweep", "gate"
+string runMode = "all"; // "basic", "all", "sweep", "gate", "record"
+string recordLabel = "unknown";
+string regionText = "";
+int recordDurationSeconds = 60;
+int recordIntervalMs = 1000;
+int recordMaxFrames = 360;
+bool includeCaptured = false;
 
 // Parse CLI args
 for (int i = 0; i < args.Length; i++)
@@ -28,6 +36,26 @@ for (int i = 0; i < args.Length; i++)
             break;
         case "--mode":
             runMode = args[++i];
+            break;
+        case "--label":
+            recordLabel = args[++i];
+            break;
+        case "--region":
+            regionText = args[++i];
+            break;
+        case "--duration":
+        case "--duration-seconds":
+            recordDurationSeconds = int.Parse(args[++i]);
+            break;
+        case "--interval":
+        case "--interval-ms":
+            recordIntervalMs = int.Parse(args[++i]);
+            break;
+        case "--max-frames":
+            recordMaxFrames = int.Parse(args[++i]);
+            break;
+        case "--include-captured":
+            includeCaptured = true;
             break;
         default:
             if (i == 0 && !args[i].StartsWith("--"))
@@ -50,18 +78,32 @@ if (string.IsNullOrEmpty(inputDir))
 
 if (string.IsNullOrEmpty(outputDir))
 {
-    outputDir = Path.Combine(repoRoot, "Docs", "ocr-lab-output", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
+    outputDir = string.Equals(runMode, "record", StringComparison.OrdinalIgnoreCase)
+        ? Path.Combine(
+            repoRoot,
+            "Docs",
+            "ocr-lab-output",
+            "gate-recordings",
+            $"{DateTime.Now:yyyyMMdd-HHmmss}-{MakeSafeFileName(recordLabel)}")
+        : Path.Combine(repoRoot, "Docs", "ocr-lab-output", DateTime.Now.ToString("yyyyMMdd-HHmmss"));
 }
 
 Directory.CreateDirectory(outputDir);
 string previewDir = Path.Combine(outputDir, "previews");
 Directory.CreateDirectory(previewDir);
 
+if (string.Equals(runMode, "record", StringComparison.OrdinalIgnoreCase))
+{
+    await RunRecordLabAsync(repoRoot, outputDir, regionText, recordLabel, recordDurationSeconds, recordIntervalMs, recordMaxFrames);
+    return;
+}
+
 // Collect images from input dir AND captured-screenshots if they exist
 List<string> imagePaths = [];
 CollectImagesFromDir(inputDir, imagePaths);
 string capturedDir = Path.Combine(repoRoot, "captured-screenshots");
-if (Directory.Exists(capturedDir))
+bool mergeCaptured = includeCaptured || !string.Equals(runMode, "gate", StringComparison.OrdinalIgnoreCase);
+if (mergeCaptured && Directory.Exists(capturedDir))
 {
     CollectImagesFromDir(capturedDir, imagePaths);
 }
@@ -171,18 +213,35 @@ Console.WriteLine($"Suggested overall mode: {GetSuggestedMode(results)}");
 
 static void RunGateLab(string inputDir, string outputDir, IReadOnlyList<string> imagePaths)
 {
-    TextPresenceGate textGate = new();
+    Dictionary<string, string> labels = LoadGateLabels(inputDir);
+    TextPresenceGate baselineGate = new();
+    StableTextLineGate stableGate = new();
     FrameDiffGate diffGate = new();
     List<GateLabResult> results = [];
     foreach (string imagePath in imagePaths)
     {
         using Bitmap source = new(imagePath);
+        Stopwatch baselineStopwatch = Stopwatch.StartNew();
         FrameDiffResult diff = diffGate.Observe(source);
-        TextPresenceResult text = textGate.Observe(source);
-        bool triggered = diff.HasChanged && text.HasLikelyText;
-        results.Add(new GateLabResult(imagePath, diff.HasChanged, text, triggered));
+        TextPresenceResult baseline = baselineGate.Observe(source);
+        baselineStopwatch.Stop();
+        StableTextLineGateResult stable = stableGate.Observe(source);
+        string label = labels.TryGetValue(Path.GetFullPath(imagePath), out string? knownLabel) && !string.IsNullOrWhiteSpace(knownLabel)
+            ? knownLabel
+            : InferGateLabel(imagePath);
+        bool baselineTriggered = diff.HasChanged && baseline.HasLikelyText;
+        bool stableTriggered = diff.HasChanged && stable.HasLikelyStableText;
+        results.Add(new GateLabResult(
+            imagePath,
+            label,
+            diff.HasChanged,
+            baseline,
+            baselineStopwatch.Elapsed,
+            baselineTriggered,
+            stable,
+            stableTriggered));
         Console.WriteLine(
-            $"{Path.GetFileName(imagePath)} | diff={diff.HasChanged} | triggered={triggered} | score={text.Score:0.##} components={text.CandidateComponentCount} lines={text.CandidateLineCount} reason={text.Reason}");
+            $"{Path.GetFileName(imagePath)} | label={label} | diff={diff.HasChanged} | baseline={baselineTriggered} score={baseline.Score:0.##} | stable={stableTriggered} score={stable.Score:0.##} lines={stable.CandidateLineCount} reason={stable.Reason}");
     }
 
     string reportPath = Path.Combine(outputDir, "gate-report.md");
@@ -194,8 +253,6 @@ static void RunGateLab(string inputDir, string outputDir, IReadOnlyList<string> 
 static string BuildGateReport(string inputDir, string outputDir, IReadOnlyList<GateLabResult> results)
 {
     int changed = results.Count(static result => result.DiffChanged);
-    int triggered = results.Count(static result => result.Triggered);
-    int rejected = results.Count(static result => result.DiffChanged && !result.Triggered);
     StringBuilder builder = new();
     builder.AppendLine("# OCR Gate Lab Report");
     builder.AppendLine();
@@ -203,25 +260,260 @@ static string BuildGateReport(string inputDir, string outputDir, IReadOnlyList<G
     builder.AppendLine($"- Output: `{outputDir}`");
     builder.AppendLine($"- Images: {results.Count}");
     builder.AppendLine($"- Diff changed: {changed}");
-    builder.AppendLine($"- Estimated OCR wakeups: {triggered}");
-    builder.AppendLine($"- Gate rejected: {rejected}");
+    AppendGateSummary(builder, "Baseline single-frame gate", results, static result => result.BaselineTriggered);
+    AppendGateSummary(builder, "Stable multi-frame gate", results, static result => result.StableTriggered);
     builder.AppendLine();
-    builder.AppendLine("| Image | Diff | Triggered | Score | Components | Lines | Reason |");
-    builder.AppendLine("| --- | --- | --- | ---: | ---: | ---: | --- |");
+    builder.AppendLine("| Image | Label | Diff | Baseline | Baseline Score | Baseline ms | Stable | Stable Score | Stable Lines | Stable ms | Reason |");
+    builder.AppendLine("| --- | --- | --- | --- | ---: | ---: | --- | ---: | ---: | ---: | --- |");
     foreach (GateLabResult result in results)
     {
         builder.AppendLine(
-            $"| {Path.GetFileName(result.ImagePath)} | {result.DiffChanged} | {result.Triggered} | {result.Text.Score:0.##} | {result.Text.CandidateComponentCount} | {result.Text.CandidateLineCount} | {result.Text.Reason} |");
+            $"| {Path.GetFileName(result.ImagePath)} | {result.Label} | {result.DiffChanged} | {result.BaselineTriggered} | {result.Baseline.Score:0.##} | {result.BaselineElapsed.TotalMilliseconds:0.###} | {result.StableTriggered} | {result.Stable.Score:0.##} | {result.Stable.CandidateLineCount} | {result.Stable.Elapsed.TotalMilliseconds:0.###} | {result.Stable.Reason} |");
     }
 
     builder.AppendLine();
-    builder.AppendLine("## Possible False Negatives");
-    foreach (GateLabResult result in results.Where(static result => result.DiffChanged && !result.Triggered && result.Text.Score >= 30))
+    builder.AppendLine("## Possible Stable-Gate False Negatives");
+    foreach (GateLabResult result in results.Where(static result => IsTextLabel(result.Label) && result.DiffChanged && !result.StableTriggered))
     {
-        builder.AppendLine($"- `{result.ImagePath}` score={result.Text.Score:0.##} reason={result.Text.Reason}");
+        builder.AppendLine($"- `{result.ImagePath}` score={result.Stable.Score:0.##} reason={result.Stable.Reason}");
     }
 
     return builder.ToString();
+}
+
+static void AppendGateSummary(
+    StringBuilder builder,
+    string title,
+    IReadOnlyList<GateLabResult> results,
+    Func<GateLabResult, bool> triggeredSelector)
+{
+    int wakeups = results.Count(triggeredSelector);
+    int rejected = results.Count(result => result.DiffChanged && !triggeredSelector(result));
+    builder.AppendLine();
+    builder.AppendLine($"## {title}");
+    builder.AppendLine($"- Estimated OCR wakeups: {wakeups}");
+    builder.AppendLine($"- Gate rejected: {rejected}");
+    builder.AppendLine($"- Rejection rate: {Percent(rejected, Math.Max(1, results.Count(static result => result.DiffChanged)))}");
+
+    IReadOnlyList<GateLabResult> labeled = results
+        .Where(static result => IsKnownLabel(result.Label))
+        .ToArray();
+    if (labeled.Count == 0)
+    {
+        builder.AppendLine("- Labeled accuracy: no labels found");
+        return;
+    }
+
+    int textFrames = labeled.Count(static result => IsTextLabel(result.Label));
+    int noTextFrames = labeled.Count(static result => IsNoTextLabel(result.Label));
+    int truePositive = labeled.Count(result => IsTextLabel(result.Label) && triggeredSelector(result));
+    int falseNegative = labeled.Count(result => IsTextLabel(result.Label) && !triggeredSelector(result));
+    int falsePositive = labeled.Count(result => IsNoTextLabel(result.Label) && triggeredSelector(result));
+    int trueNegative = labeled.Count(result => IsNoTextLabel(result.Label) && !triggeredSelector(result));
+    builder.AppendLine($"- Text frames: {textFrames}, no-text frames: {noTextFrames}");
+    builder.AppendLine($"- True positives: {truePositive}, false negatives: {falseNegative}");
+    builder.AppendLine($"- True negatives: {trueNegative}, false positives: {falsePositive}");
+    builder.AppendLine($"- No-text rejection rate: {Percent(trueNegative, noTextFrames)}");
+    builder.AppendLine($"- Text recall: {Percent(truePositive, textFrames)}");
+}
+
+static string Percent(int numerator, int denominator) =>
+    denominator <= 0 ? "n/a" : $"{(double)numerator / denominator:P1}";
+
+static Dictionary<string, string> LoadGateLabels(string inputDir)
+{
+    Dictionary<string, string> labels = new(StringComparer.OrdinalIgnoreCase);
+    if (!Directory.Exists(inputDir))
+    {
+        return labels;
+    }
+
+    foreach (string manifestPath in Directory.EnumerateFiles(inputDir, "gate-case.json", SearchOption.AllDirectories))
+    {
+        try
+        {
+            using FileStream stream = File.OpenRead(manifestPath);
+            GateRecordingManifest? manifest = JsonSerializer.Deserialize<GateRecordingManifest>(
+                stream,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            if (manifest is null)
+            {
+                continue;
+            }
+
+            string manifestDir = Path.GetDirectoryName(manifestPath) ?? inputDir;
+            foreach (GateRecordedFrame frame in manifest.Frames)
+            {
+                labels[Path.GetFullPath(Path.Combine(manifestDir, frame.FileName))] = NormalizeLabel(manifest.Label);
+            }
+        }
+        catch
+        {
+            // Gate labels are best-effort lab metadata.
+        }
+    }
+
+    return labels;
+}
+
+static string InferGateLabel(string imagePath)
+{
+    string value = imagePath.ToLowerInvariant();
+    if (value.Contains("no-text") || value.Contains("notext") || value.Contains("empty") || value.Contains("idle"))
+    {
+        return "no-text";
+    }
+
+    if (value.Contains("with-text") || value.Contains("text") || value.Contains("chat"))
+    {
+        return "text";
+    }
+
+    return "unknown";
+}
+
+static string NormalizeLabel(string label)
+{
+    string normalized = label.Trim().ToLowerInvariant();
+    return normalized is "no-text" or "notext" or "empty" or "idle"
+        ? "no-text"
+        : normalized is "text" or "with-text" or "chat"
+            ? "text"
+            : "unknown";
+}
+
+static bool IsKnownLabel(string label) => IsTextLabel(label) || IsNoTextLabel(label);
+
+static bool IsTextLabel(string label) => string.Equals(NormalizeLabel(label), "text", StringComparison.Ordinal);
+
+static bool IsNoTextLabel(string label) => string.Equals(NormalizeLabel(label), "no-text", StringComparison.Ordinal);
+
+static async Task RunRecordLabAsync(
+    string repoRoot,
+    string outputDir,
+    string regionText,
+    string label,
+    int durationSeconds,
+    int intervalMs,
+    int maxFrames)
+{
+    durationSeconds = Math.Clamp(durationSeconds, 1, 180);
+    intervalMs = Math.Clamp(intervalMs, 250, 5000);
+    maxFrames = Math.Clamp(maxFrames, 1, 360);
+    int plannedFrames = Math.Min(maxFrames, Math.Max(1, (int)Math.Floor(durationSeconds * 1000.0 / intervalMs) + 1));
+
+    System.Windows.Rect region = string.IsNullOrWhiteSpace(regionText)
+        ? LoadCaptureRegionFromSettings()
+        : ParseRegion(regionText);
+    if (!ScreenBoundsService.TryClipToVirtualScreen(region, out System.Windows.Rect clipped))
+    {
+        throw new InvalidOperationException($"Capture region is invalid or outside the screen: {ScreenBoundsService.Format(region)}");
+    }
+
+    Directory.CreateDirectory(outputDir);
+    List<GateRecordedFrame> frames = [];
+    Console.WriteLine("Gate case recorder");
+    Console.WriteLine($"Label: {NormalizeLabel(label)}");
+    Console.WriteLine($"Region: {ScreenBoundsService.Format(clipped)}");
+    Console.WriteLine($"Duration: {durationSeconds}s");
+    Console.WriteLine($"Interval: {intervalMs}ms");
+    Console.WriteLine($"Max frames: {plannedFrames}");
+    Console.WriteLine($"Output: {outputDir}");
+    Console.WriteLine("Recording starts now. Use the game normally; close this console or press Ctrl+C to stop early.");
+
+    using CancellationTokenSource cts = new();
+    Console.CancelKeyPress += (_, e) =>
+    {
+        e.Cancel = true;
+        cts.Cancel();
+    };
+
+    Stopwatch total = Stopwatch.StartNew();
+    for (int index = 0; index < plannedFrames && !cts.IsCancellationRequested; index++)
+    {
+        Stopwatch frameStopwatch = Stopwatch.StartNew();
+        string fileName = $"frame_{index + 1:000000}.png";
+        string path = Path.Combine(outputDir, fileName);
+        using Bitmap bitmap = ScreenCaptureService.Capture(clipped);
+        bitmap.Save(path, ImageFormat.Png);
+        frameStopwatch.Stop();
+        frames.Add(new GateRecordedFrame(
+            fileName,
+            DateTime.Now,
+            total.Elapsed.TotalMilliseconds,
+            frameStopwatch.Elapsed.TotalMilliseconds));
+        Console.WriteLine($"{index + 1:000}/{plannedFrames:000} saved {fileName} capture={frameStopwatch.ElapsedMilliseconds}ms");
+
+        int delay = intervalMs - (int)frameStopwatch.ElapsedMilliseconds;
+        if (delay > 0 && index < plannedFrames - 1)
+        {
+            try
+            {
+                await Task.Delay(delay, cts.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
+        }
+    }
+
+    GateRecordingManifest manifest = new(
+        1,
+        NormalizeLabel(label),
+        DateTime.Now,
+        durationSeconds,
+        intervalMs,
+        ScreenBoundsService.Format(clipped),
+        frames);
+    string manifestPath = Path.Combine(outputDir, "gate-case.json");
+    File.WriteAllText(
+        manifestPath,
+        JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }),
+        new UTF8Encoding(false));
+    Console.WriteLine();
+    Console.WriteLine($"Frames: {frames.Count}");
+    Console.WriteLine($"Manifest: {manifestPath}");
+    Console.WriteLine("Evaluate this case with:");
+    string dotnet = Path.Combine(Directory.GetParent(repoRoot)?.FullName ?? repoRoot, ".dotnet", "dotnet.exe");
+    Console.WriteLine($"  {dotnet} run --project Tools\\OcrPreprocessLab\\OcrPreprocessLab.csproj -c Release -- --mode gate --input \"{outputDir}\"");
+}
+
+static System.Windows.Rect LoadCaptureRegionFromSettings()
+{
+    if (!File.Exists(ConfigStore.SettingsPath))
+    {
+        throw new FileNotFoundException(
+            "No settings.json was found. Select a chat region in the main app first, or pass --region x,y,w,h.",
+            ConfigStore.SettingsPath);
+    }
+
+    string json = File.ReadAllText(ConfigStore.SettingsPath, Encoding.UTF8);
+    using JsonDocument document = JsonDocument.Parse(json);
+    if (!document.RootElement.TryGetProperty("captureRegion", out JsonElement region))
+    {
+        throw new InvalidOperationException("settings.json has no captureRegion. Select a chat region in the main app first, or pass --region x,y,w,h.");
+    }
+
+    return new System.Windows.Rect(
+        region.GetProperty("left").GetDouble(),
+        region.GetProperty("top").GetDouble(),
+        region.GetProperty("width").GetDouble(),
+        region.GetProperty("height").GetDouble());
+}
+
+static System.Windows.Rect ParseRegion(string value)
+{
+    double[] parts = value
+        .Split([',', ' ', ';', 'x'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(double.Parse)
+        .ToArray();
+    if (parts.Length != 4)
+    {
+        throw new ArgumentException("Region must be formatted as left,top,width,height.", nameof(value));
+    }
+
+    return new System.Windows.Rect(parts[0], parts[1], parts[2], parts[3]);
 }
 
 // ============================================================
@@ -521,9 +813,28 @@ internal sealed record PreprocessVariant(string Name, Func<Bitmap, Bitmap> Prepa
 
 internal sealed record GateLabResult(
     string ImagePath,
+    string Label,
     bool DiffChanged,
-    TextPresenceResult Text,
-    bool Triggered);
+    TextPresenceResult Baseline,
+    TimeSpan BaselineElapsed,
+    bool BaselineTriggered,
+    StableTextLineGateResult Stable,
+    bool StableTriggered);
+
+internal sealed record GateRecordingManifest(
+    int Version,
+    string Label,
+    DateTime CreatedAt,
+    int DurationSeconds,
+    int IntervalMs,
+    string Region,
+    IReadOnlyList<GateRecordedFrame> Frames);
+
+internal sealed record GateRecordedFrame(
+    string FileName,
+    DateTime CapturedAt,
+    double ElapsedMs,
+    double CaptureMs);
 
 internal sealed record LabResult(
     string ImagePath,
